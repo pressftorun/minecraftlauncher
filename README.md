@@ -1,10 +1,21 @@
 # Create Launcher
 
+<img src="desktop/Assets/logo.png" alt="Логотип Create Launcher" width="96" />
+
 Портативный лаунчер для **Minecraft 1.21.1 · NeoForge 21.1.264**.
 
 [![Build and release](https://github.com/pressftorun/minecraftlauncher/actions/workflows/build.yml/badge.svg)](https://github.com/pressftorun/minecraftlauncher/actions/workflows/build.yml)
 [![Release](https://img.shields.io/github/v/release/pressftorun/minecraftlauncher)](https://github.com/pressftorun/minecraftlauncher/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
+[Скачать](#скачать) · [Первый запуск](#первый-запуск) · [Разработка](CONTRIBUTING.md) · [Сообщить об ошибке](https://github.com/pressftorun/minecraftlauncher/issues/new/choose) · [Безопасность](SECURITY.md)
+
+Устанавливает клиентскую сборку, Java и NeoForge в одну папку. Позволяет управлять профилями, выбирать память и Java, проверять файлы игры и смотреть состояние сервера.
+
+| Репозиторий | Содержимое |
+| --- | --- |
+| **minecraftlauncher** — этот проект | Интерфейс, установка, авторизация и запуск игры |
+| [minecraftversion](https://github.com/pressftorun/minecraftversion) | Моды, конфиги, ресурсы меню и архив клиента |
 
 ## Скачать
 
@@ -72,6 +83,15 @@ pwsh ./build-native.ps1 -Runtime linux-x64
 `desktop/MainWindow.axaml` — интерфейс, `LauncherService.cs` — установка и запуск, `SelfTests.cs` — встроенные проверки. GitHub Actions собирает и тестирует Windows/Linux и публикует релиз по версии из `CreateLauncher.csproj`, если такой релиз ещё не существует.
 
 Windows проверен реальным запуском игры; Linux проходит сборку и встроенные тесты в CI. Вход на сервер и графический запуск Linux требуют отдельной проверки.
+
+Подробнее: [правила разработки](CONTRIBUTING.md), [выпуск релиза](docs/RELEASING.md), [сообщение об уязвимости](SECURITY.md).
+
+## Если что-то не работает
+
+- **Не начинается установка:** проверьте подключение к интернету, доступность GitHub и права записи в папку лаунчера.
+- **Не запускается игра:** закройте Minecraft, нажмите «Проверить файлы» и проверьте выбранную Java 21 x64.
+- **Не работает вход:** проверьте выбранного провайдера и настройки сервера. Проверка аккаунта в лаунчере не заменяет серверную команду `/login`.
+- **Нужна помощь:** создайте [сообщение об ошибке](https://github.com/pressftorun/minecraftlauncher/issues/new/choose), указав версию, ОС и шаги воспроизведения. Прикладывайте только очищенный фрагмент `data/logs/game.log`.
 
 ## Лицензия
 
