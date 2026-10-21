@@ -1,0 +1,19 @@
+<Application xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="CreateLauncher.App" RequestedThemeVariant="Dark">
+  <Application.Styles>
+    <FluentTheme><FluentTheme.Palettes><ColorPaletteResources x:Key="Dark" Accent="#A8E580" /></FluentTheme.Palettes></FluentTheme>
+    <Style Selector="TextBlock"><Setter Property="FontFamily" Value="fonts:Inter#Inter"/><Setter Property="Foreground" Value="#EAECE8"/></Style>
+    <Style Selector="TextBlock.muted"><Setter Property="Foreground" Value="#B9D2BF"/><Setter Property="FontSize" Value="12"/></Style>
+    <Style Selector="TextBlock.eyebrow"><Setter Property="Foreground" Value="#B6B8AC"/><Setter Property="FontSize" Value="10"/><Setter Property="LetterSpacing" Value="2"/><Setter Property="FontWeight" Value="SemiBold"/></Style>
+    <Style Selector="Border.card"><Setter Property="Background" Value="#284A37"/><Setter Property="BorderBrush" Value="#3E6A4D"/><Setter Property="BorderThickness" Value="1"/><Setter Property="CornerRadius" Value="14"/></Style>
+    <Style Selector="Button"><Setter Property="CornerRadius" Value="9"/><Setter Property="Padding" Value="18,12"/><Setter Property="FontSize" Value="12"/><Setter Property="Cursor" Value="Hand"/><Setter Property="Background" Value="#365D42"/><Setter Property="Foreground" Value="#E4E7E3"/></Style>
+    <Style Selector="Button.primary"><Setter Property="Background" Value="#A8E580"/><Setter Property="Foreground" Value="#17251C"/><Setter Property="FontWeight" Value="Bold"/><Setter Property="Padding" Value="30,16"/><Setter Property="FontSize" Value="14"/></Style>
+    <Style Selector="Button.primary:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="#C6F5A2"/><Setter Property="Foreground" Value="#17251C"/></Style>
+    <Style Selector="Button.nav"><Setter Property="Background" Value="Transparent"/><Setter Property="HorizontalContentAlignment" Value="Left"/><Setter Property="HorizontalAlignment" Value="Stretch"/><Setter Property="Foreground" Value="#B9D2BF"/><Setter Property="Padding" Value="15,13"/></Style>
+    <Style Selector="Button.active"><Setter Property="Background" Value="#335E3C"/><Setter Property="Foreground" Value="#D5F8B8"/></Style>
+    <Style Selector="TextBox"><Setter Property="CornerRadius" Value="8"/><Setter Property="Background" Value="#1B3525"/><Setter Property="BorderBrush" Value="#4E7958"/><Setter Property="Padding" Value="12,10"/><Setter Property="FontSize" Value="13"/></Style>
+    <Style Selector="ComboBox"><Setter Property="CornerRadius" Value="8"/><Setter Property="Background" Value="#1B3525"/><Setter Property="BorderBrush" Value="#4E7958"/><Setter Property="Padding" Value="10,8"/></Style>
+    <Style Selector="FlyoutPresenter"><Setter Property="Background" Value="#254A35"/><Setter Property="BorderBrush" Value="#537C59"/><Setter Property="BorderThickness" Value="1"/><Setter Property="CornerRadius" Value="13"/><Setter Property="Padding" Value="18"/></Style>
+  </Application.Styles>
+</Application>
+
+

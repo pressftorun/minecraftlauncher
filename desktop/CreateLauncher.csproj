@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AssemblyName>CreateLauncher</AssemblyName>
+    <Version>0.3.1</Version>
+    <ApplicationIcon Condition="Exists('Assets/logo.ico')">Assets/logo.ico</ApplicationIcon>
+    <PublishTrimmed>false</PublishTrimmed>
+    <NuGetAudit>false</NuGetAudit>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Avalonia.Desktop" Version="12.1.2" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.2" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.2" />
+    <PackageReference Include="CmlLib.Core" Version="4.0.6" />
+    <PackageReference Include="CmlLib.Core.Installer.Forge" Version="2.0.0" />
+    <PackageReference Include="fNbt" Version="1.0.0" />
+    <None Include="../launcher.json" Link="launcher.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Assets/logo.ico" CopyToOutputDirectory="PreserveNewest" Condition="Exists('Assets/logo.ico')" />
+    <AvaloniaResource Include="Assets/logo.png" />
+  </ItemGroup>
+</Project>

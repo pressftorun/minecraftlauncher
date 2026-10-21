@@ -1,0 +1,10 @@
+{
+  "name": "Create Server",
+  "server": "46.146.228.125:25565",
+  "minecraft": "1.21.1",
+  "loader": "21.1.264",
+  "pack_url": "",
+  "pack_sha256": "",
+  "pack_release_url": "https://api.github.com/repos/pressftorun/minecraftversion/releases/latest",
+  "bluemap_url": "http://46.146.228.125:8100/"
+}

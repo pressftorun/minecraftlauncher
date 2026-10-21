@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+build/
+dist/
+*.spec
+data/
+client-repository/
+.nuget/
+**/bin/
+**/obj/
+*.log
+test-data-*/
+/tools/
+
