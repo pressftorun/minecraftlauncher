@@ -2,6 +2,10 @@ name: Build and release
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - .github/workflows/release-notes.yml
   workflow_dispatch:
 permissions:
   contents: read
