@@ -33,6 +33,7 @@ static class SelfTests
         try
         {
             LauncherUpdaterTests.Run(root);
+            OptionalModsTests.Run(root);
             Check(LauncherService.Offline("Notch").UUID == "b50ad385829d3141a2167e7d7539ba7f", "Offline UUID matches Java");
             foreach (var name in new[] { "ab", "a b", new string('x', 17), "../bad" }) Reject(() => LauncherService.Offline(name));
             foreach (var value in new[] { 0, 127, 128, 767, 2097152 }) { using var buffer = new MemoryStream(); LauncherService.WriteVarInt(buffer, value); buffer.Position = 0; Check(LauncherService.ReadVarInt(buffer) == value, "VarInt"); }

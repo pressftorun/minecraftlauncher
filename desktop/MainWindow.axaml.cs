@@ -150,11 +150,13 @@ public partial class MainWindow : Window
         OperationTitle.Text = service.IsInstalled ? "Готово к запуску" : "Клиент не установлен";
         if (service.IsInstalled) Detail("Клиент установлен");
         UpdateGameActions();
+        if (ClientModsPanel.IsVisible) LoadOptionalMods();
     }
     void UpdateGameActions()
     {
         InstallButton.IsEnabled = PlayButton.IsEnabled = !busy && !service.IsGameRunning;
         ApplyLauncherUpdateButton.IsEnabled = BannerUpdateButton.IsEnabled = !busy && !service.IsGameRunning;
+        RefreshOptionalModsButton.IsEnabled = OptionalModsList.IsEnabled = !busy && !service.IsGameRunning;
     }
 
     async void CheckLauncherUpdateClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => await CheckLauncherUpdate();
@@ -232,7 +234,59 @@ public partial class MainWindow : Window
         SettingsButton.Classes.Set("active", SettingsPanel.IsVisible);
         ClientModsButton.Classes.Set("active", ClientModsPanel.IsVisible);
         PageTitle.Text = page switch { Page.Settings => "Настройки", Page.ClientMods => "Клиентские моды", _ => "Обзор" };
+        if (page == Page.ClientMods) LoadOptionalMods();
     }
+
+    void LoadOptionalMods()
+    {
+        OptionalModsList.Children.Clear();
+        try
+        {
+            var mods = OptionalMods.Scan(service);
+            var state = OptionalMods.Load(service);
+            OptionalModsEmpty.IsVisible = mods.Count == 0;
+            OptionalModsStatus.Text = mods.Count == 0 ? "Папка клиента: optional-mods/"
+                : $"Найдено: {mods.Count} · Выбор сохраняется автоматически";
+            foreach (var mod in mods)
+            {
+                var toggle = new ToggleSwitch { IsChecked = state.Enabled.Contains(mod.Id), IsEnabled = mod.Error == null,
+                    OnContent = "Вкл", OffContent = "Выкл", VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center };
+                Avalonia.Automation.AutomationProperties.SetName(toggle, mod.Name);
+                var details = new StackPanel { Spacing = 5, Margin = new Thickness(0, 0, 18, 0), Children = {
+                    new TextBlock { Text = mod.Name, FontWeight = FontWeight.SemiBold, FontSize = 15, TextWrapping = TextWrapping.Wrap },
+                    new TextBlock { Text = mod.Error ?? (string.IsNullOrEmpty(mod.Version) ? mod.FileName : mod.Version + " · " + mod.FileName),
+                        Foreground = SolidColorBrush.Parse(mod.Error == null ? "#B9D2BF" : "#FFB8A6"), FontSize = 11, TextWrapping = TextWrapping.Wrap }
+                } };
+                var row = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), Children = { details, toggle } };
+                Grid.SetColumn(toggle, 1);
+                OptionalModsList.Children.Add(new Border { Classes = { "card" }, Padding = new Thickness(20, 16), Child = row });
+                toggle.IsCheckedChanged += (_, _) =>
+                {
+                    try
+                    {
+                        OptionalMods.SetEnabled(service, mod.Id, toggle.IsChecked == true);
+                        OptionalModsStatus.Text = "Сохранено. Изменения применятся при следующем запуске игры.";
+                    }
+                    catch (Exception error) { LoadOptionalMods(); OptionalModsStatus.Text = error.Message; }
+                };
+            }
+            UpdateGameActions();
+        }
+        catch (Exception error) when (error is IOException or InvalidDataException or UnauthorizedAccessException or System.Text.Json.JsonException)
+        {
+            OptionalModsEmpty.IsVisible = false;
+            OptionalModsStatus.Text = "Не удалось прочитать список: " + error.Message;
+        }
+    }
+
+    async void RefreshOptionalModsClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => await Operation(async () =>
+    {
+        OperationTitle.Text = "Обновляем список модов";
+        await Task.Run(() => service.RefreshOptionalMods(text => Dispatcher.UIThread.Post(() => Detail(text))));
+        LoadOptionalMods();
+        OperationTitle.Text = "Список модов обновлён";
+        Detail("Опциональные моды загружены. Выбери, какие включить.");
+    });
     void OverviewClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => ShowPage(Page.Overview);
     void SettingsClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => ShowPage(Page.Settings);
     void ClientModsClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => ShowPage(Page.ClientMods);

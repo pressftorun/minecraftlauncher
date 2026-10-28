@@ -282,7 +282,7 @@ public sealed class LauncherService
         return target;
     }
 
-    public static void ApplyPack(string archive, string game, string state, LauncherConfig config)
+    public static void ApplyPack(string archive, string game, string state, LauncherConfig config, bool optionalOnly = false)
     {
         using var z = ZipFile.OpenRead(archive);
         var comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
@@ -292,13 +292,14 @@ public sealed class LauncherService
         if (manifest.Minecraft != config.Minecraft || manifest.Loader != config.Loader) throw new InvalidDataException("Версии сборки отличаются от launcher.json");
         if (manifest.Files.Keys.Distinct(comparer).Count() != manifest.Files.Count) throw new InvalidDataException("Повторяющиеся пути пакета");
         var previous = File.Exists(state) ? Read<PackManifest>(state).Files : new Dictionary<string, string>();
-        foreach (var (name, digest) in manifest.Files)
+        var files = manifest.Files.Where(p => !optionalOnly || p.Key.StartsWith("optional-mods/", StringComparison.Ordinal)).ToDictionary();
+        foreach (var (name, digest) in files)
         {
             PackPath(game, name);
             using var entry = (z.GetEntry(name) ?? throw new InvalidDataException("Нет файла " + name)).Open();
             if (!Convert.ToHexStringLower(SHA256.HashData(entry)).Equals(digest, StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException("Повреждён файл " + name);
         }
-        foreach (var (name, digest) in manifest.Files)
+        foreach (var (name, digest) in files)
         {
             var target = PackPath(game, name);
             var current = File.Exists(target) ? Hash(target) : null;
@@ -308,12 +309,21 @@ public sealed class LauncherService
             z.GetEntry(name)!.ExtractToFile(target + ".tmp", true);
             File.Move(target + ".tmp", target, true);
         }
-        foreach (var (name, digest) in previous.Where(p => (p.Key.StartsWith("mods/") || p.Key.StartsWith("optional-mods/")) && !manifest.Files.ContainsKey(p.Key)))
+        foreach (var (name, digest) in previous.Where(p => (p.Key.StartsWith("optional-mods/") || (!optionalOnly && p.Key.StartsWith("mods/"))) && !files.ContainsKey(p.Key)))
         {
             var target = PackPath(game, name);
             if (File.Exists(target) && Hash(target) == digest) File.Delete(target);
         }
-        Write(state, manifest);
+        if (optionalOnly) files = previous.Where(p => !p.Key.StartsWith("optional-mods/")).Concat(files).ToDictionary();
+        Write(state, manifest with { Files = files });
+    }
+
+    public async Task RefreshOptionalMods(Action<string> report)
+    {
+        if (IsGameRunning) throw new InvalidOperationException("Закрой Minecraft перед обновлением модов.");
+        var archive = await GetPackArchive(report);
+        ApplyPack(archive, Game, Path.Combine(Data, "pack-state.json"), Config, optionalOnly: true);
+        OptionalMods.Apply(this);
     }
 
     public static void AddServer(string game, string address, string name)
@@ -475,6 +485,7 @@ public sealed class LauncherService
     {
         if (IsGameRunning) throw new InvalidOperationException("Minecraft уже запущен");
         var process = await BuildProcess(session, memory, ely);
+        OptionalMods.Apply(this);
         process.StartInfo.RedirectStandardOutput = true;
         process.StartInfo.RedirectStandardError = true;
         process.Start();

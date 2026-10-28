@@ -13,8 +13,8 @@
           <Button x:Name="SettingsButton" Classes="nav" Content="⚙     Настройки" Click="SettingsClick"/>
           <Button x:Name="ClientModsButton" Classes="nav" Click="ClientModsClick">
             <StackPanel Orientation="Horizontal" Spacing="14">
-              <TextBlock Text="▦" VerticalAlignment="Center"/>
-              <TextBlock Text="Клиентские&#10;моды"/>
+              <TextBlock Text="▦" VerticalAlignment="Center" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ContentPresenter}}"/>
+              <TextBlock Text="Клиентские&#10;моды" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ContentPresenter}}"/>
             </StackPanel>
           </Button>
         </StackPanel>
@@ -79,14 +79,19 @@
             </Grid>
           </StackPanel>
           <StackPanel x:Name="ClientModsPanel" IsVisible="False" Spacing="20">
-            <StackPanel Spacing="7">
-              <TextBlock Text="Клиентские моды" FontSize="28" FontWeight="SemiBold" LetterSpacing="-0.5"/>
-              <TextBlock Text="Дополнительные возможности для твоего клиента." Classes="muted" TextWrapping="Wrap"/>
-            </StackPanel>
-            <Border Classes="card" Padding="24,28">
+            <Grid ColumnDefinitions="*,Auto">
+              <StackPanel Spacing="7" Margin="0,0,16,0">
+                <TextBlock Text="Клиентские моды" FontSize="28" FontWeight="SemiBold" LetterSpacing="-0.5"/>
+                <TextBlock Text="Включённые моды загрузятся при следующем запуске игры." Classes="muted" TextWrapping="Wrap"/>
+              </StackPanel>
+              <Button x:Name="RefreshOptionalModsButton" Grid.Column="1" Content="↻ Обновить список" VerticalAlignment="Center" Click="RefreshOptionalModsClick"/>
+            </Grid>
+            <TextBlock x:Name="OptionalModsStatus" Classes="muted" TextWrapping="Wrap"/>
+            <StackPanel x:Name="OptionalModsList" Spacing="10"/>
+            <Border x:Name="OptionalModsEmpty" Classes="card" Padding="24,28">
               <StackPanel Spacing="10">
-                <TextBlock Text="Список модов пока пуст" FontSize="16" FontWeight="SemiBold"/>
-                <TextBlock Text="Здесь появятся опциональные моды, которые можно будет включать и выключать." Classes="muted" TextWrapping="Wrap"/>
+                <TextBlock Text="Опциональные моды не найдены" FontSize="16" FontWeight="SemiBold"/>
+                <TextBlock Text="Нажми «Обновить список», чтобы загрузить моды из сборки, или добавь JAR в папку optional-mods внутри папки клиента." Classes="muted" TextWrapping="Wrap"/>
               </StackPanel>
             </Border>
           </StackPanel>
