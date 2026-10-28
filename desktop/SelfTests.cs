@@ -29,6 +29,7 @@ static class SelfTests
     public static void Run()
     {
         LocalizationTests.Run();
+        DownloadTests.Run().GetAwaiter().GetResult();
         var root = Path.Combine(AppContext.BaseDirectory, "test-data-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
         try
@@ -79,6 +80,13 @@ static class SelfTests
             using var release = JsonDocument.Parse(releaseJson);
             var download = LauncherService.ParsePackRelease(release.RootElement);
             Check(download.Sha256 == new string('a', 64) && download.Url.EndsWith("/test/client.zip"), "GitHub release resolves an archive and its SHA-256 together");
+            using var optionalRelease = JsonDocument.Parse(releaseJson.Replace("}]}", "},{\"name\":\"optional-mods.zip\",\"browser_download_url\":\"https://github.com/pressftorun/minecraftversion/releases/download/test/optional-mods.zip\",\"digest\":\"sha256:" + new string('b', 64) + "\"}]}"));
+            var optionalDownload = LauncherService.ParsePackRelease(optionalRelease.RootElement, optionalOnly: true);
+            Check(optionalDownload.Sha256 == new string('b', 64) && optionalDownload.Url.EndsWith("/optional-mods.zip"), "Optional refresh selects the small verified archive");
+            Check(LauncherService.ParsePackRelease(optionalRelease.RootElement).FileName == "client.zip", "Full installation still selects the full archive");
+            Check(LauncherService.ParsePackRelease(release.RootElement, optionalOnly: true).Url == download.Url, "Older releases without optional archive still work");
+            using var badOptional = JsonDocument.Parse(optionalRelease.RootElement.GetRawText().Replace("sha256:" + new string('b', 64), "sha1:" + new string('b', 64)));
+            Reject(() => LauncherService.ParsePackRelease(badOptional.RootElement, optionalOnly: true));
             using var missingDigest = JsonDocument.Parse(releaseJson.Replace("sha256:", "sha1:"));
             Reject(() => LauncherService.ParsePackRelease(missingDigest.RootElement));
             using var insecureRelease = JsonDocument.Parse(releaseJson.Replace("https://", "http://"));

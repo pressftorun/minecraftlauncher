@@ -300,5 +300,12 @@ internal static class Localization
         ["Список модов пока пуст"] = "The mod list is empty",
         ["Здесь появятся опциональные моды, которые можно будет включать и выключать."] = "Optional mods you can enable and disable will appear here.",
         ["Положите client.zip рядом с лаунчером"] = "Place client.zip next to the launcher",
+        ["Не удалось получить ответ от {0}. Проверь подключение и повтори загрузку."] = "No response from {0}. Check your connection and try downloading again.",
+        ["Загрузка остановилась: нет новых данных в течение минуты. Проверь подключение и повтори попытку."] = "Download stalled: no new data for one minute. Check your connection and try again.",
+        ["Загрузка прервалась: файл получен не полностью."] = "Download interrupted: the file is incomplete.",
+        ["Опциональные моды"] = "Optional mods",
+        ["Клиентская сборка"] = "Client modpack",
+        ["{0}: {1:0.0} / {2:0.0} МБ"] = "{0}: {1:0.0} / {2:0.0} MB",
+        ["{0}: загружено {1:0.0} МБ"] = "{0}: {1:0.0} MB downloaded",
     };
 }

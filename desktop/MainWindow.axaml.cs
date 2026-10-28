@@ -299,9 +299,12 @@ public partial class MainWindow : Window
     async void RefreshOptionalModsClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => await Operation(async () =>
     {
         OperationTitle.Text = Localization.Text("Обновляем список модов");
-        await Task.Run(() => service.RefreshOptionalMods(text => Dispatcher.UIThread.Post(() => Detail(text))));
+        InstallProgress.Value = 0;
+        await Task.Run(() => service.RefreshOptionalMods(text => Dispatcher.UIThread.Post(() => Detail(text)),
+            ratio => Dispatcher.UIThread.Post(() => InstallProgress.Value = Math.Clamp(ratio * 100, 0, 100))));
         LoadOptionalMods();
         OperationTitle.Text = Localization.Text("Список модов обновлён");
+        InstallProgress.Value = 100;
         Detail(Localization.Text("Опциональные моды загружены. Выбери, какие включить."));
     });
     void OverviewClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => ShowPage(Page.Overview);

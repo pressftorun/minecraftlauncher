@@ -12,6 +12,13 @@ internal static class OptionalMods
 {
     static string Hash(string file) { using var stream = File.OpenRead(file); return Convert.ToHexStringLower(SHA256.HashData(stream)); }
     static string StatePath(LauncherService service) => Path.Combine(service.Data, "optional-mods.json");
+    static HashSet<string> RequiredFiles(LauncherService service)
+    {
+        var path = Path.Combine(service.Data, "pack-state.json");
+        return File.Exists(path) ? LauncherService.Read<PackManifest>(path).Files.Keys
+            .Where(name => name.StartsWith("mods/", StringComparison.Ordinal)).Select(name => name[5..])
+            .ToHashSet(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal) : [];
+    }
     public static OptionalModsState Load(LauncherService service) => File.Exists(StatePath(service))
         ? LauncherService.Read<OptionalModsState>(StatePath(service)) : new([], new());
 
@@ -30,7 +37,9 @@ internal static class OptionalMods
         directory = Path.GetDirectoryName(directory)!;
         Directory.CreateDirectory(directory);
         var result = new List<OptionalMod>();
-        foreach (var file in Directory.EnumerateFiles(directory).Where(p => p.EndsWith(".jar", StringComparison.OrdinalIgnoreCase)))
+        var required = RequiredFiles(service);
+        foreach (var file in Directory.EnumerateFiles(directory).Where(p => p.EndsWith(".jar", StringComparison.OrdinalIgnoreCase)
+            && !required.Contains(Path.GetFileName(p))))
         {
             var name = Path.GetFileName(file);
             try
@@ -76,6 +85,9 @@ internal static class OptionalMods
     {
         if (service.IsGameRunning) throw new InvalidOperationException("Закрой Minecraft перед изменением модов.");
         var state = Load(service);
+        // Once a pack owns a required mod, optional toggles must never delete its copy.
+        var required = RequiredFiles(service);
+        foreach (var name in state.Managed.Keys.Where(required.Contains).ToArray()) state.Managed.Remove(name);
         var mods = Scan(service);
         if (mods.Any(m => m.Error != null && state.Enabled.Contains(m.Id))) throw new InvalidDataException("Включённый опциональный мод повреждён");
         var desired = mods.Where(m => m.Error == null && state.Enabled.Contains(m.Id)).ToDictionary(m => m.FileName,

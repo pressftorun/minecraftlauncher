@@ -23,7 +23,7 @@ public record LauncherConfig(string Name = "Create Server", string Server = "46.
     [property: JsonPropertyName("pack_sha256")] string PackSha256 = "",
     [property: JsonPropertyName("bluemap_url")] string BlueMapUrl = "http://46.146.228.125:8100/",
     [property: JsonPropertyName("pack_release_url")] string PackReleaseUrl = "https://api.github.com/repos/pressftorun/minecraftversion/releases/latest");
-internal record PackDownload(string Url, string Sha256);
+internal record PackDownload(string Url, string Sha256, string FileName = "client.zip");
 public record PackManifest(string Minecraft, string Loader, Dictionary<string, string> Files);
 public record Preferences(string Nickname = "", int Memory = 6, string JavaPath = "", int MemoryMb = 0);
 public record PlayerProfile(string Name, string Uuid, int Provider);
@@ -318,10 +318,10 @@ public sealed class LauncherService
         Write(state, manifest with { Files = files });
     }
 
-    public async Task RefreshOptionalMods(Action<string> report)
+    public async Task RefreshOptionalMods(Action<string> report, Action<double>? progress = null)
     {
         if (IsGameRunning) throw new InvalidOperationException(Localization.Text("Закрой Minecraft перед обновлением модов."));
-        var archive = await GetPackArchive(report);
+        var archive = await GetPackArchive(report, optionalOnly: true, progress);
         ApplyPack(archive, Game, Path.Combine(Data, "pack-state.json"), Config, optionalOnly: true);
         OptionalMods.Apply(this);
     }
@@ -340,38 +340,75 @@ public sealed class LauncherService
         File.Move(path + ".tmp", path, true);
     }
 
-    public static async Task Download(string url, string target, string? digest = null, CancellationToken cancellation = default)
+    public static async Task Download(string url, string target, string? digest = null, CancellationToken cancellation = default,
+        Action<long, long?>? progress = null)
     {
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || uri.Scheme != "https") throw new ArgumentException(Localization.Text("Нужен HTTPS-адрес загрузки"));
         Directory.CreateDirectory(Path.GetDirectoryName(target)!);
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
-        timeout.CancelAfter(TimeSpan.FromMinutes(5));
+        timeout.CancelAfter(TimeSpan.FromMinutes(1));
         try
         {
             using var response = await Http.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, timeout.Token);
             response.EnsureSuccessStatusCode();
-            await using (var file = File.Create(target + ".part")) await response.Content.CopyToAsync(file, timeout.Token);
+            timeout.CancelAfter(Timeout.InfiniteTimeSpan);
+            await using (var source = await response.Content.ReadAsStreamAsync(cancellation))
+            await using (var file = File.Create(target + ".part"))
+                await CopyDownload(source, file, response.Content.Headers.ContentLength, progress, cancellation);
             if (digest != null && !Hash(target + ".part").Equals(digest, StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException(Localization.Text("SHA-256 файла не совпадает"));
             File.Move(target + ".part", target, true);
         }
+        catch (OperationCanceledException error) when (!cancellation.IsCancellationRequested)
+        { throw new TimeoutException(Localization.Format("Не удалось получить ответ от {0}. Проверь подключение и повтори загрузку.", uri.Host), error); }
         finally { if (File.Exists(target + ".part")) File.Delete(target + ".part"); }
     }
 
-    internal static PackDownload ParsePackRelease(JsonElement release)
+    internal static async Task CopyDownload(Stream source, Stream destination, long? total, Action<long, long?>? progress,
+        CancellationToken cancellation = default, TimeSpan? inactivityTimeout = null)
+    {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
+        var limit = inactivityTimeout ?? TimeSpan.FromMinutes(1);
+        var buffer = new byte[65536];
+        long received = 0;
+        var clock = Stopwatch.StartNew();
+        progress?.Invoke(0, total);
+        try
+        {
+            while (true)
+            {
+                timeout.CancelAfter(limit);
+                int count = await source.ReadAsync(buffer, timeout.Token);
+                timeout.CancelAfter(Timeout.InfiniteTimeSpan);
+                if (count == 0) break;
+                await destination.WriteAsync(buffer.AsMemory(0, count), cancellation);
+                received += count;
+                if (clock.ElapsedMilliseconds >= 250) { progress?.Invoke(received, total); clock.Restart(); }
+            }
+            if (total.HasValue && received != total.Value) throw new IOException(Localization.Text("Загрузка прервалась: файл получен не полностью."));
+            progress?.Invoke(received, total);
+        }
+        catch (OperationCanceledException error) when (!cancellation.IsCancellationRequested)
+        { throw new TimeoutException(Localization.Text("Загрузка остановилась: нет новых данных в течение минуты. Проверь подключение и повтори попытку."), error); }
+    }
+
+    internal static PackDownload ParsePackRelease(JsonElement release, bool optionalOnly = false)
     {
         if (release.GetProperty("draft").GetBoolean() || release.GetProperty("prerelease").GetBoolean())
             throw new InvalidDataException(Localization.Text("Нужен опубликованный стабильный релиз клиента"));
-        var asset = release.GetProperty("assets").EnumerateArray().SingleOrDefault(a => a.GetProperty("name").GetString() == "client.zip");
+        var assets = release.GetProperty("assets");
+        var name = optionalOnly && assets.EnumerateArray().Any(a => a.GetProperty("name").GetString() == "optional-mods.zip")
+            ? "optional-mods.zip" : "client.zip";
+        var asset = assets.EnumerateArray().SingleOrDefault(a => a.GetProperty("name").GetString() == name);
         if (asset.ValueKind != JsonValueKind.Object) throw new InvalidDataException(Localization.Text("В релизе GitHub нет client.zip"));
         var url = asset.GetProperty("browser_download_url").GetString();
         var digest = asset.TryGetProperty("digest", out var hash) ? hash.GetString() : null;
         if (digest == null || !Regex.IsMatch(digest, "^sha256:[a-fA-F0-9]{64}$") ||
             !Uri.TryCreate(url, UriKind.Absolute, out var uri) || uri.Scheme != "https")
             throw new InvalidDataException(Localization.Text("Релиз клиента не содержит HTTPS-адрес и SHA-256"));
-        return new(url!, digest[7..].ToLowerInvariant());
+        return new(url!, digest[7..].ToLowerInvariant(), name);
     }
 
-    internal async Task<string> GetPackArchive(Action<string> report)
+    internal async Task<string> GetPackArchive(Action<string> report, bool optionalOnly = false, Action<double>? progress = null)
     {
         var bundled = Path.Combine(Root, "client.zip");
         PackDownload? pack = null;
@@ -391,18 +428,24 @@ public sealed class LauncherService
             using var response = await Http.SendAsync(request, timeout.Token);
             response.EnsureSuccessStatusCode();
             using var release = JsonDocument.Parse(await response.Content.ReadAsStringAsync(timeout.Token));
-            pack = ParsePackRelease(release.RootElement);
+            pack = ParsePackRelease(release.RootElement, optionalOnly);
         }
         if (pack == null)
         {
             if (!File.Exists(bundled)) throw new FileNotFoundException(Localization.Text("Положите client.zip рядом с лаунчером или настройте источник загрузки"));
             return bundled;
         }
-        var cached = Path.Combine(Data, "client.zip");
-        foreach (var path in new[] { cached, bundled })
+        var cached = Path.Combine(Data, pack.FileName);
+        foreach (var path in new[] { cached, Path.Combine(Root, pack.FileName) })
             if (File.Exists(path) && Hash(path).Equals(pack.Sha256, StringComparison.OrdinalIgnoreCase)) return path;
         report(Localization.Text("Загружаем клиентскую сборку…"));
-        await Download(pack.Url, cached, pack.Sha256);
+        await Download(pack.Url, cached, pack.Sha256, progress: (received, total) =>
+        {
+            var label = pack.FileName == "optional-mods.zip" ? Localization.Text("Опциональные моды") : Localization.Text("Клиентская сборка");
+            report(total > 0 ? Localization.Format("{0}: {1:0.0} / {2:0.0} МБ", label, received / 1048576d, total.Value / 1048576d)
+                : Localization.Format("{0}: загружено {1:0.0} МБ", label, received / 1048576d));
+            progress?.Invoke(total > 0 ? (double)received / total.Value : 0);
+        });
         return cached;
     }
 

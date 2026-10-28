@@ -66,6 +66,17 @@ internal static class OptionalModsTests
         }
         LauncherService.ApplyPack(archivePath, service.Game, Path.Combine(service.Data, "pack-state.json"), service.Config, optionalOnly: true);
         Check(File.ReadAllText(required) == "required mod" && File.ReadAllText(Path.Combine(folder, "new.jar")) == content, "Refreshing optional files preserves required mods");
+        File.Delete(Path.Combine(folder, "duplicate.jar"));
+        File.Delete(Path.Combine(folder, "new.jar"));
+        OptionalMods.Apply(service);
+        var promoted = Path.Combine(service.Game, "mods", "map-2.jar");
+        var promotedDigest = Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(promoted)));
+        LauncherService.Write(Path.Combine(service.Data, "pack-state.json"), new PackManifest("1.21.1", "21.1.264",
+            new() { ["mods/map-2.jar"] = promotedDigest }));
+        Check(OptionalMods.Scan(service).Count == 0, "A mod promoted to required must no longer have an optional toggle");
+        OptionalMods.Apply(service);
+        Check(File.Exists(promoted) && !OptionalMods.Load(service).Managed.ContainsKey("map-2.jar"),
+            "Promoted required mod remains installed and is no longer owned by optional toggles");
         Console.WriteLine("PASS: optional mod discovery, toggles, persistence, version updates, conflict protection and optional-only refresh");
     }
 }

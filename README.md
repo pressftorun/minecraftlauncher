@@ -10,7 +10,9 @@
 
 [Скачать](#скачать) · [Первый запуск](#первый-запуск) · [Разработка](CONTRIBUTING.md) · [Сообщить об ошибке](https://github.com/pressftorun/minecraftlauncher/issues/new/choose) · [Безопасность](SECURITY.md)
 
-Устанавливает клиентскую сборку, Java и NeoForge в одну папку. Позволяет управлять профилями, выбирать память и Java, проверять файлы игры и смотреть состояние сервера.
+Устанавливает клиентскую сборку, Java и NeoForge в одну папку. Русский и английский интерфейс, сохранённые профили, выбор памяти и Java, проверка файлов и состояние сервера. В версии **0.3.6** список клиентских модов обновляется отдельным архивом около **9 МБ** с отображением прогресса.
+
+![Клиентские моды в Create Launcher 0.3.6](docs/images/launcher-0.3.6.png)
 
 | Репозиторий | Содержимое |
 | --- | --- |
@@ -19,10 +21,10 @@
 
 ## Скачать
 
-| Система | Лаунчер 0.3.1 |
+| Система | Лаунчер 0.3.6 |
 | --- | --- |
-| Windows x64 | [Скачать ZIP](https://github.com/pressftorun/minecraftlauncher/releases/download/v0.3.1/CreateLauncher-0.3.1-win-x64.zip) |
-| Linux x64 | [Скачать ZIP](https://github.com/pressftorun/minecraftlauncher/releases/download/v0.3.1/CreateLauncher-0.3.1-linux-x64.zip) |
+| Windows x64 | [Скачать ZIP](https://github.com/pressftorun/minecraftlauncher/releases/download/v0.3.6/CreateLauncher-0.3.6-win-x64.zip) |
+| Linux x64 | [Скачать ZIP](https://github.com/pressftorun/minecraftlauncher/releases/download/v0.3.6/CreateLauncher-0.3.6-linux-x64.zip) |
 
 [Все релизы](https://github.com/pressftorun/minecraftlauncher/releases) · [Изменения](CHANGELOG.md) · [Клиентская сборка](https://github.com/pressftorun/minecraftversion)
 
@@ -46,7 +48,9 @@
 
 Клиент загружается из последнего стабильного [релиза minecraftversion](https://github.com/pressftorun/minecraftversion/releases/latest). Лаунчер сверяет SHA-256 и повторно использует архив с совпадающим хешем. Устаревшие неизменённые моды пакета удаляются; дополнительные моды и изменённые конфиги игрока сохраняются. Новые значения в изменённых конфигах нужно переносить вручную.
 
-Во время работы игры проверка и обновление заблокированы. Тайм-аут загрузки файла — пять минут. Журнал игры: `data/logs/game.log`.
+Во время работы игры проверка и обновление заблокированы. При загрузке показываются полученные мегабайты и прогресс. Медленное скачивание продолжается, пока поступают данные; если новых данных нет минуту, загрузка завершается понятной ошибкой. Журнал игры: `data/logs/game.log`.
+
+Кнопка «Обновить список» в разделе «Клиентские моды» скачивает `optional-mods.zip`, а не полный клиент. Для старых релизов без этого архива используется `client.zip`. Обязательные библиотеки, включая Architectury API и Craft Config Library, устанавливаются через «Проверить файлы» и не отключаются опциональными переключателями.
 
 ## Профили и настройки
 
