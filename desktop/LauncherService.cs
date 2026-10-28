@@ -270,7 +270,7 @@ public sealed class LauncherService
     }
     public static string PackPath(string root, string name)
     {
-        var allowed = new[] { "mods", "config", "defaultconfigs", "coremods", "resourcepacks", "shaderpacks", "texturepacks", "moonlight-global-datapacks" };
+        var allowed = new[] { "mods", "optional-mods", "config", "defaultconfigs", "coremods", "resourcepacks", "shaderpacks", "texturepacks", "moonlight-global-datapacks" };
         var parts = name.Split('/');
         bool rootSettings = parts.Length == 1 && name == "options.txt";
         if (name.Contains('\\') || name.Contains(':') || parts.Any(p => p is ".." or "." or "") || (!rootSettings && !allowed.Contains(parts[0]))) throw new InvalidDataException("Недопустимый путь пакета: " + name);
@@ -303,12 +303,12 @@ public sealed class LauncherService
             var target = PackPath(game, name);
             var current = File.Exists(target) ? Hash(target) : null;
             previous.TryGetValue(name, out var old);
-            if (current == digest || (!name.StartsWith("mods/") && current != null && current != old)) continue;
+            if (current == digest || (!name.StartsWith("mods/") && !name.StartsWith("optional-mods/") && current != null && current != old)) continue;
             Directory.CreateDirectory(Path.GetDirectoryName(target)!);
             z.GetEntry(name)!.ExtractToFile(target + ".tmp", true);
             File.Move(target + ".tmp", target, true);
         }
-        foreach (var (name, digest) in previous.Where(p => p.Key.StartsWith("mods/") && !manifest.Files.ContainsKey(p.Key)))
+        foreach (var (name, digest) in previous.Where(p => (p.Key.StartsWith("mods/") || p.Key.StartsWith("optional-mods/")) && !manifest.Files.ContainsKey(p.Key)))
         {
             var target = PackPath(game, name);
             if (File.Exists(target) && Hash(target) == digest) File.Delete(target);

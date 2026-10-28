@@ -32,6 +32,7 @@ static class SelfTests
         Directory.CreateDirectory(root);
         try
         {
+            LauncherUpdaterTests.Run(root);
             Check(LauncherService.Offline("Notch").UUID == "b50ad385829d3141a2167e7d7539ba7f", "Offline UUID matches Java");
             foreach (var name in new[] { "ab", "a b", new string('x', 17), "../bad" }) Reject(() => LauncherService.Offline(name));
             foreach (var value in new[] { 0, 127, 128, 767, 2097152 }) { using var buffer = new MemoryStream(); LauncherService.WriteVarInt(buffer, value); buffer.Position = 0; Check(LauncherService.ReadVarInt(buffer) == value, "VarInt"); }
@@ -39,15 +40,22 @@ static class SelfTests
             var game = Path.Combine(root, "game");
             var state = Path.Combine(root, "state.json");
             var config = new LauncherConfig();
-            var zip = Pack(root, new() { ["mods/old.jar"] = "old", ["config/test.json"] = "default", ["options.txt"] = "saved game defaults" });
+            var zip = Pack(root, new() { ["mods/old.jar"] = "old", ["optional-mods/map.jar"] = "optional map", ["optional-mods/retired.jar"] = "retired", ["config/test.json"] = "default", ["options.txt"] = "saved game defaults" });
             LauncherService.ApplyPack(zip, game, state, config);
+            Check(File.ReadAllText(Path.Combine(game, "optional-mods", "map.jar")) == "optional map"
+                && !File.Exists(Path.Combine(game, "mods", "map.jar")), "Optional mods install into a separate inactive folder");
             Check(File.ReadAllText(Path.Combine(game, "options.txt")) == "saved game defaults", "New client receives default Minecraft options");
             File.Delete(zip);
             File.WriteAllText(Path.Combine(game, "mods", "personal.jar"), "personal mod");
+            File.WriteAllText(Path.Combine(game, "optional-mods", "personal.jar"), "personal optional mod");
+            File.WriteAllText(Path.Combine(game, "optional-mods", "map.jar"), "damaged optional mod");
             File.WriteAllText(Path.Combine(game, "config", "test.json"), "personal");
             File.WriteAllText(Path.Combine(game, "options.txt"), "personal game options");
-            zip = Pack(root, new() { ["mods/new.jar"] = "new", ["config/test.json"] = "new default", ["options.txt"] = "new game defaults" });
+            zip = Pack(root, new() { ["mods/new.jar"] = "new", ["optional-mods/map.jar"] = "updated optional map", ["config/test.json"] = "new default", ["options.txt"] = "new game defaults" });
             LauncherService.ApplyPack(zip, game, state, config);
+            Check(File.ReadAllText(Path.Combine(game, "optional-mods", "map.jar")) == "updated optional map", "Optional pack mods are repaired and updated");
+            Check(!File.Exists(Path.Combine(game, "optional-mods", "retired.jar")), "Retired optional pack mods are removed");
+            Check(File.ReadAllText(Path.Combine(game, "optional-mods", "personal.jar")) == "personal optional mod", "Personal optional mods survive updates");
             Check(!File.Exists(Path.Combine(game, "mods", "old.jar")), "Obsolete pack mod removed");
             Check(File.ReadAllText(Path.Combine(game, "mods", "personal.jar")) == "personal mod", "User mods preserved");
             Check(File.ReadAllText(Path.Combine(game, "config", "test.json")) == "personal", "User config preserved");

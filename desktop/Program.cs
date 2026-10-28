@@ -13,6 +13,11 @@ internal static class Program
         Arguments = args;
         try
         {
+            if (args.Length == 3 && args[0] == "--apply-launcher-update")
+            {
+                LauncherUpdater.Apply(int.Parse(args[1]), args[2]);
+                return 0;
+            }
             if (args.Contains("--self-test")) { SelfTests.Run(); return 0; }
             if (args.Length == 2 && args[0] == "--check-java") { Console.WriteLine(LauncherService.CheckJava(args[1]).GetAwaiter().GetResult()); return 0; }
             if (args.Length is 2 or 3 && args[0] == "--check-skin")

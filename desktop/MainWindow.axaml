@@ -11,14 +11,20 @@
         <StackPanel Grid.Row="1" Spacing="7">
           <Button x:Name="OverviewButton" Classes="nav active" Content="◈     Обзор" Click="OverviewClick"/>
           <Button x:Name="SettingsButton" Classes="nav" Content="⚙     Настройки" Click="SettingsClick"/>
+          <Button x:Name="ClientModsButton" Classes="nav" Click="ClientModsClick">
+            <StackPanel Orientation="Horizontal" Spacing="14">
+              <TextBlock Text="▦" VerticalAlignment="Center"/>
+              <TextBlock Text="Клиентские&#10;моды"/>
+            </StackPanel>
+          </Button>
         </StackPanel>
         <StackPanel Grid.Row="3" Spacing="12">
           <Button Classes="nav" Content="▦     Папка клиента" Click="OpenGameClick"/>
-          <TextBlock Text="v0.3.1" FontSize="10" Foreground="#6D8877" Margin="15,0"/>
+          <TextBlock x:Name="LauncherVersionLabel" FontSize="10" Foreground="#6D8877" Margin="15,0"/>
         </StackPanel>
       </Grid>
     </Border>
-    <Grid Grid.Column="1" RowDefinitions="72,*,Auto">
+    <Grid Grid.Column="1" RowDefinitions="72,Auto,*,Auto">
       <Grid ColumnDefinitions="*,Auto" Margin="28,0" VerticalAlignment="Center">
         <TextBlock x:Name="PageTitle" Text="Обзор" FontSize="12"/>
         <Button x:Name="AccountButton" Grid.Column="1" Padding="8,6,12,6" Background="#2B503B">
@@ -54,7 +60,13 @@
           </Button.Flyout>
         </Button>
       </Grid>
-      <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
+      <Border x:Name="LauncherUpdateBanner" Grid.Row="1" IsVisible="False" Classes="card" Margin="28,0,28,12" Padding="14,10">
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock x:Name="LauncherUpdateBannerText" VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,0,12,0"/>
+          <Button x:Name="BannerUpdateButton" Grid.Column="1" Content="Обновить" Click="ApplyLauncherUpdateClick"/>
+        </Grid>
+      </Border>
+      <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Disabled">
         <Grid Margin="28,8,28,24">
           <StackPanel x:Name="OverviewPanel" Spacing="22">
             <StackPanel Spacing="8"><TextBlock x:Name="GreetingTitle" FontSize="29" FontWeight="SemiBold" LetterSpacing="-0.7" TextWrapping="Wrap"/><TextBlock x:Name="GreetingSubtitle" IsVisible="False" Foreground="#B4CCBC" FontSize="12" TextWrapping="Wrap"/></StackPanel>
@@ -65,6 +77,18 @@
               </StackPanel>
               <Border Grid.Column="2" Classes="card" Padding="16,17" MinHeight="108" VerticalAlignment="Top"><StackPanel Spacing="9"><TextBlock Text="СБОРКА КЛИЕНТА" Classes="eyebrow"/><TextBlock x:Name="VersionLabel" FontSize="23" FontWeight="SemiBold"/><TextBlock x:Name="LoaderLabel" Classes="muted" FontSize="10"/></StackPanel></Border>
             </Grid>
+          </StackPanel>
+          <StackPanel x:Name="ClientModsPanel" IsVisible="False" Spacing="20">
+            <StackPanel Spacing="7">
+              <TextBlock Text="Клиентские моды" FontSize="28" FontWeight="SemiBold" LetterSpacing="-0.5"/>
+              <TextBlock Text="Дополнительные возможности для твоего клиента." Classes="muted" TextWrapping="Wrap"/>
+            </StackPanel>
+            <Border Classes="card" Padding="24,28">
+              <StackPanel Spacing="10">
+                <TextBlock Text="Список модов пока пуст" FontSize="16" FontWeight="SemiBold"/>
+                <TextBlock Text="Здесь появятся опциональные моды, которые можно будет включать и выключать." Classes="muted" TextWrapping="Wrap"/>
+              </StackPanel>
+            </Border>
           </StackPanel>
           <StackPanel x:Name="SettingsPanel" IsVisible="False" Spacing="20">
             <StackPanel Spacing="7"><TextBlock Text="Настройки клиента" FontSize="28" FontWeight="SemiBold" LetterSpacing="-0.5"/><TextBlock Text="Подстрой Minecraft под свой компьютер." Foreground="#91A596" FontSize="12"/></StackPanel>
@@ -84,10 +108,20 @@
               <StackPanel Orientation="Horizontal" Spacing="10"><Button Content="Найти Java" Click="FindJavaClick"/><Button x:Name="CheckJavaButton" Content="Проверить Java" Click="CheckJavaClick"/></StackPanel>
             </StackPanel></Border>
             <Grid ColumnDefinitions="*,Auto"><TextBlock x:Name="SettingsHint" Text="Настройки хранятся рядом с лаунчером." Classes="muted" FontSize="11" VerticalAlignment="Center"/><Button Grid.Column="1" Classes="primary" Content="Сохранить настройки" Click="SaveSettingsClick"/></Grid>
+            <Border Classes="card" Padding="20">
+              <StackPanel Spacing="12">
+                <TextBlock Text="Обновление лаунчера" FontSize="15" FontWeight="SemiBold"/>
+                <TextBlock x:Name="LauncherUpdateStatus" Text="Проверка обновлений при запуске." Classes="muted" TextWrapping="Wrap"/>
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                  <Button x:Name="CheckLauncherUpdateButton" Content="Проверить обновления" Click="CheckLauncherUpdateClick"/>
+                  <Button x:Name="ApplyLauncherUpdateButton" Classes="primary" Content="Обновить и перезапустить" IsVisible="False" Click="ApplyLauncherUpdateClick"/>
+                </StackPanel>
+              </StackPanel>
+            </Border>
           </StackPanel>
         </Grid>
       </ScrollViewer>
-      <Border Grid.Row="2" Background="#23402D" BorderBrush="#304537" BorderThickness="0,1,0,0" Padding="28,17,28,20">
+      <Border Grid.Row="3" Background="#23402D" BorderBrush="#304537" BorderThickness="0,1,0,0" Padding="28,17,28,20">
         <StackPanel Spacing="13"><ProgressBar x:Name="InstallProgress" Height="3" CornerRadius="2" Maximum="100" Foreground="#A8E580" Background="#304336"/>
           <Grid ColumnDefinitions="*,Auto,12,Auto"><StackPanel VerticalAlignment="Center" Spacing="6" Margin="0,0,10,0"><TextBlock x:Name="OperationTitle" Text="Твой мир ждёт" FontSize="12" FontWeight="SemiBold"/><TextBlock x:Name="OperationDetail" Text="Установи клиент и присоединяйся к серверу" Classes="muted" FontSize="10" TextTrimming="CharacterEllipsis" MaxWidth="310" HorizontalAlignment="Left"/></StackPanel><Button x:Name="InstallButton" Grid.Column="1" Content="Проверить файлы" VerticalAlignment="Center" Click="InstallClick"/><Button x:Name="PlayButton" Grid.Column="3" Classes="primary" Content="Установить и играть  →" Click="PlayClick"/></Grid>
         </StackPanel>

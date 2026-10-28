@@ -22,6 +22,8 @@ public partial class MainWindow : Window
     int skinRequest;
     bool busy, statusPending;
     bool memorySync;
+    LauncherUpdate? launcherUpdate;
+    bool checkingLauncherUpdate;
     Flyout AccountFlyout => (Flyout)AccountButton.Flyout!;
 
     public MainWindow()
@@ -30,6 +32,7 @@ public partial class MainWindow : Window
         var icon = Path.Combine(AppContext.BaseDirectory, "Assets", "logo.ico");
         if (File.Exists(icon)) Icon = new WindowIcon(icon);
         service = new LauncherService();
+        LauncherVersionLabel.Text = LauncherUpdater.VersionLabel;
         ServerAddress.Text = service.Config.Server;
         BlueMapButton.IsVisible = Uri.TryCreate(service.Config.BlueMapUrl, UriKind.Absolute, out var mapUri) && mapUri.Scheme is "http" or "https";
         VersionLabel.Text = service.Config.Minecraft;
@@ -64,11 +67,23 @@ public partial class MainWindow : Window
         UpdateInstalled();
         statusTimer.Tick += async (_, _) => await RefreshStatus();
         Opened += async (_, _) => {
-            if (Program.Arguments.Contains("--settings")) ShowPage(true);
+            if (!Program.Arguments.Any(a => a is "--preview" or "--smoke-test" or "--ui-check" or "--make-icon")) _ = CheckLauncherUpdate();
+            if (Program.Arguments.Contains("--settings")) ShowPage(Page.Settings);
+            if (Program.Arguments.Contains("--client-mods")) ShowPage(Page.ClientMods);
             if (Program.Arguments.Contains("--ely")) AuthMode.SelectedIndex = 1;
             if (Program.Arguments.Contains("--tlauncher")) AuthMode.SelectedIndex = 2;
             if (Program.Arguments.Contains("--ui-check"))
             {
+                foreach (var page in Enum.GetValues<Page>())
+                {
+                    ShowPage(page);
+                    if (OverviewPanel.IsVisible != (page == Page.Overview) || SettingsPanel.IsVisible != (page == Page.Settings)
+                        || ClientModsPanel.IsVisible != (page == Page.ClientMods)
+                        || ClientModsButton.Classes.Contains("active") != (page == Page.ClientMods))
+                        throw new Exception("Page navigation failed: " + page);
+                }
+                ShowPage(Program.Arguments.Contains("--client-mods") ? Page.ClientMods
+                    : Program.Arguments.Contains("--settings") ? Page.Settings : Page.Overview);
                 var saved = MemoryInput.Value;
                 MemoryInput.Value = 7425;
                 if (Math.Abs(MemorySlider.Value - 7425) > .01) throw new Exception("Memory input did not update slider");
@@ -136,7 +151,56 @@ public partial class MainWindow : Window
         if (service.IsInstalled) Detail("Клиент установлен");
         UpdateGameActions();
     }
-    void UpdateGameActions() => InstallButton.IsEnabled = PlayButton.IsEnabled = !busy && !service.IsGameRunning;
+    void UpdateGameActions()
+    {
+        InstallButton.IsEnabled = PlayButton.IsEnabled = !busy && !service.IsGameRunning;
+        ApplyLauncherUpdateButton.IsEnabled = BannerUpdateButton.IsEnabled = !busy && !service.IsGameRunning;
+    }
+
+    async void CheckLauncherUpdateClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => await CheckLauncherUpdate();
+    async Task CheckLauncherUpdate()
+    {
+        if (checkingLauncherUpdate) return;
+        if (!LauncherUpdater.Supported)
+        {
+            LauncherUpdateStatus.Text = "Проверка доступна в установленной сборке лаунчера.";
+            return;
+        }
+        checkingLauncherUpdate = true;
+        CheckLauncherUpdateButton.IsEnabled = false;
+        LauncherUpdateStatus.Text = "Проверяем обновления…";
+        try
+        {
+            launcherUpdate = await LauncherUpdater.Check();
+            ApplyLauncherUpdateButton.IsVisible = LauncherUpdateBanner.IsVisible = launcherUpdate != null;
+            LauncherUpdateStatus.Text = launcherUpdate == null ? "Установлена последняя версия " + LauncherUpdater.VersionLabel
+                : $"Доступна версия {launcherUpdate.Version}. Настройки и файлы игры сохранятся.";
+            LauncherUpdateBannerText.Text = launcherUpdate == null ? "" : $"Доступен Create Launcher {launcherUpdate.Version}";
+            UpdateGameActions();
+        }
+        catch (Exception error) when (error is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException or InvalidDataException)
+        { LauncherUpdateStatus.Text = "Не удалось проверить обновление. Попробуй позже."; }
+        finally { checkingLauncherUpdate = false; CheckLauncherUpdateButton.IsEnabled = true; }
+    }
+
+    async void ApplyLauncherUpdateClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (busy || launcherUpdate == null) return;
+        if (service.IsGameRunning) { LauncherUpdateStatus.Text = "Закрой Minecraft перед обновлением лаунчера."; return; }
+        bool restart = false;
+        await Operation(async () =>
+        {
+            OperationTitle.Text = "Обновляем лаунчер";
+            CheckLauncherUpdateButton.IsEnabled = false;
+            try
+            {
+                await LauncherUpdater.Start(launcherUpdate, service.Root, Detail);
+                restart = true;
+            }
+            finally { CheckLauncherUpdateButton.IsEnabled = !checkingLauncherUpdate; }
+        });
+        if (restart) Close();
+    }
     void AuthChanged(object? sender, SelectionChangedEventArgs e)
     {
         if (PasswordFields == null) return;
@@ -158,14 +222,20 @@ public partial class MainWindow : Window
         JavaPathPanel.IsVisible = custom;
         JavaHint.Text = custom ? "Выбери Java 21 x64. Внешнюю Java нужно выбирать заново после переноса на другой ПК." : "Java скачивается и хранится в папке лаунчера.";
     }
-    void ShowPage(bool settings)
+    enum Page { Overview, Settings, ClientMods }
+    void ShowPage(Page page)
     {
-        OverviewPanel.IsVisible = !settings; SettingsPanel.IsVisible = settings;
-        OverviewButton.Classes.Set("active", !settings); SettingsButton.Classes.Set("active", settings);
-        PageTitle.Text = settings ? "Настройки" : "Обзор";
+        OverviewPanel.IsVisible = page == Page.Overview;
+        SettingsPanel.IsVisible = page == Page.Settings;
+        ClientModsPanel.IsVisible = page == Page.ClientMods;
+        OverviewButton.Classes.Set("active", OverviewPanel.IsVisible);
+        SettingsButton.Classes.Set("active", SettingsPanel.IsVisible);
+        ClientModsButton.Classes.Set("active", ClientModsPanel.IsVisible);
+        PageTitle.Text = page switch { Page.Settings => "Настройки", Page.ClientMods => "Клиентские моды", _ => "Обзор" };
     }
-    void OverviewClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => ShowPage(false);
-    void SettingsClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => ShowPage(true);
+    void OverviewClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => ShowPage(Page.Overview);
+    void SettingsClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => ShowPage(Page.Settings);
+    void ClientModsClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => ShowPage(Page.ClientMods);
     void OpenBlueMapClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         if (Uri.TryCreate(service.Config.BlueMapUrl, UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https")
@@ -196,6 +266,7 @@ public partial class MainWindow : Window
     {
         if (busy) return;
         busy = true;
+        UpdateGameActions();
         InstallButton.IsEnabled = PlayButton.IsEnabled = AccountButton.IsEnabled = SettingsPanel.IsEnabled = false;
         try { await work(); }
         catch (Exception error)
