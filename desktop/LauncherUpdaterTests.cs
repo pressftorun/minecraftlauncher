@@ -38,6 +38,8 @@ internal static class LauncherUpdaterTests
         }
         var workspace = Path.Combine(root, "updater");
         Directory.CreateDirectory(workspace);
+        Check(LauncherUpdater.SafePath(workspace + Path.DirectorySeparatorChar, "data/update.zip")
+            == Path.Combine(workspace, "data", "update.zip"), "Installation paths with a trailing separator are accepted");
         string MakeZip(string name, params (string Path, string Text)[] files)
         {
             var path = Path.Combine(workspace, name);

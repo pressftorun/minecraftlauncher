@@ -54,10 +54,11 @@ internal static class LauncherUpdater
         var parts = name.Split('/');
         if (name.Contains('\\') || name.Contains(':') || parts.Any(p => p is "" or "." or ".."))
             throw new InvalidDataException("Недопустимый путь обновления: " + name);
-        root = Path.GetFullPath(root);
+        root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root));
         var target = Path.GetFullPath(Path.Combine(root, name));
         var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-        if (!target.StartsWith(root + Path.DirectorySeparatorChar, comparison)) throw new InvalidDataException("Файл вне папки лаунчера");
+        var prefix = Path.EndsInDirectorySeparator(root) ? root : root + Path.DirectorySeparatorChar;
+        if (!target.StartsWith(prefix, comparison)) throw new InvalidDataException("Файл вне папки лаунчера");
         for (var dir = new DirectoryInfo(Path.GetDirectoryName(target)!); dir != null && dir.FullName.Length >= root.Length; dir = dir.Parent)
             if (dir.Exists && (dir.Attributes & FileAttributes.ReparsePoint) != 0) throw new InvalidDataException("Ссылки в папке обновления не поддерживаются");
         if (File.Exists(target) && (File.GetAttributes(target) & FileAttributes.ReparsePoint) != 0) throw new InvalidDataException("Файл обновления является ссылкой");
