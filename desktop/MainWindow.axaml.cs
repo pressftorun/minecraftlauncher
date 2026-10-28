@@ -32,6 +32,7 @@ public partial class MainWindow : Window
         var icon = Path.Combine(AppContext.BaseDirectory, "Assets", "logo.ico");
         if (File.Exists(icon)) Icon = new WindowIcon(icon);
         service = new LauncherService();
+        InitializeLanguage();
         LauncherVersionLabel.Text = LauncherUpdater.VersionLabel;
         ServerAddress.Text = service.Config.Server;
         BlueMapButton.IsVisible = Uri.TryCreate(service.Config.BlueMapUrl, UriKind.Absolute, out var mapUri) && mapUri.Scheme is "http" or "https";
@@ -74,6 +75,22 @@ public partial class MainWindow : Window
             if (Program.Arguments.Contains("--tlauncher")) AuthMode.SelectedIndex = 2;
             if (Program.Arguments.Contains("--ui-check"))
             {
+                var originalLanguage = LanguageSelector.SelectedIndex;
+                Password.Text = "language-switch-check";
+                LanguageSelector.SelectedIndex = 1;
+                await Task.Delay(50);
+                if (Localization.Language != "en" || PageTitle.Text != "Overview"
+                    && PageTitle.Text != "Settings" && PageTitle.Text != "Client mods"
+                    || Password.Text != "language-switch-check"
+                    || LauncherService.Read<string>(LanguagePath) != "en"
+                    || !Equals(OverviewButton.Content, "◈     Overview"))
+                    throw new Exception("English language switch failed");
+                LanguageSelector.SelectedIndex = 0;
+                await Task.Delay(50);
+                if (Localization.Language != "ru" || !Equals(OverviewButton.Content, "◈     Обзор"))
+                    throw new Exception("Russian language switch failed");
+                LanguageSelector.SelectedIndex = originalLanguage;
+                Password.Text = "";
                 foreach (var page in Enum.GetValues<Page>())
                 {
                     ShowPage(page);
@@ -126,10 +143,10 @@ public partial class MainWindow : Window
             }
         };
         Closed += (_, _) => { statusTimer.Stop(); ++skinRequest; ++profilesRevision; Avatar.Reset(); foreach (var head in savedHeads) head.Reset(); };
-        Closing += (_, e) => { if (busy) { e.Cancel = true; Detail("Дождись завершения текущей операции перед закрытием."); } };
+        Closing += (_, e) => { if (busy) { e.Cancel = true; Detail(Localization.Text("Дождись завершения текущей операции перед закрытием.")); } };
     }
 
-    void Detail(string text) => OperationDetail.Text = text;
+    void Detail(string text) => OperationDetail.Text = Localization.Translate(text);
     void DrawMemoryScale()
     {
         MemoryScale.Children.Clear();
@@ -146,9 +163,9 @@ public partial class MainWindow : Window
     }
     void UpdateInstalled()
     {
-        PlayButton.Content = service.IsInstalled ? "Играть  →" : "Установить и играть  →";
-        OperationTitle.Text = service.IsInstalled ? "Готово к запуску" : "Клиент не установлен";
-        if (service.IsInstalled) Detail("Клиент установлен");
+        PlayButton.Content = service.IsInstalled ? Localization.Text("Играть  →") : Localization.Text("Установить и играть  →");
+        OperationTitle.Text = service.IsInstalled ? Localization.Text("Готово к запуску") : Localization.Text("Клиент не установлен");
+        if (service.IsInstalled) Detail(Localization.Text("Клиент установлен"));
         UpdateGameActions();
         if (ClientModsPanel.IsVisible) LoadOptionalMods();
     }
@@ -165,34 +182,34 @@ public partial class MainWindow : Window
         if (checkingLauncherUpdate) return;
         if (!LauncherUpdater.Supported)
         {
-            LauncherUpdateStatus.Text = "Проверка доступна в установленной сборке лаунчера.";
+            LauncherUpdateStatus.Text = Localization.Text("Проверка доступна в установленной сборке лаунчера.");
             return;
         }
         checkingLauncherUpdate = true;
         CheckLauncherUpdateButton.IsEnabled = false;
-        LauncherUpdateStatus.Text = "Проверяем обновления…";
+        LauncherUpdateStatus.Text = Localization.Text("Проверяем обновления…");
         try
         {
             launcherUpdate = await LauncherUpdater.Check();
             ApplyLauncherUpdateButton.IsVisible = LauncherUpdateBanner.IsVisible = launcherUpdate != null;
-            LauncherUpdateStatus.Text = launcherUpdate == null ? "Установлена последняя версия " + LauncherUpdater.VersionLabel
-                : $"Доступна версия {launcherUpdate.Version}. Настройки и файлы игры сохранятся.";
-            LauncherUpdateBannerText.Text = launcherUpdate == null ? "" : $"Доступен Create Launcher {launcherUpdate.Version}";
+            LauncherUpdateStatus.Text = launcherUpdate == null ? Localization.Text("Установлена последняя версия ") + LauncherUpdater.VersionLabel
+                : Localization.Format("Доступна версия {0}. Настройки и файлы игры сохранятся.", launcherUpdate.Version);
+            LauncherUpdateBannerText.Text = launcherUpdate == null ? "" : Localization.Format("Доступен Create Launcher {0}", launcherUpdate.Version);
             UpdateGameActions();
         }
         catch (Exception error) when (error is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException or InvalidDataException)
-        { LauncherUpdateStatus.Text = "Не удалось проверить обновление. Попробуй позже."; }
+        { LauncherUpdateStatus.Text = Localization.Text("Не удалось проверить обновление. Попробуй позже."); }
         finally { checkingLauncherUpdate = false; CheckLauncherUpdateButton.IsEnabled = true; }
     }
 
     async void ApplyLauncherUpdateClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         if (busy || launcherUpdate == null) return;
-        if (service.IsGameRunning) { LauncherUpdateStatus.Text = "Закрой Minecraft перед обновлением лаунчера."; return; }
+        if (service.IsGameRunning) { LauncherUpdateStatus.Text = Localization.Text("Закрой Minecraft перед обновлением лаунчера."); return; }
         bool restart = false;
         await Operation(async () =>
         {
-            OperationTitle.Text = "Обновляем лаунчер";
+            OperationTitle.Text = Localization.Text("Обновляем лаунчер");
             CheckLauncherUpdateButton.IsEnabled = false;
             try
             {
@@ -210,10 +227,10 @@ public partial class MainWindow : Window
         PasswordFields.IsVisible = mode != 0;
         TotpPanel.IsVisible = mode == 1;
         Grid.SetColumnSpan(PasswordInputPanel, mode == 2 ? 3 : 1);
-        LoginLabel.Text = mode switch { 1 => "Логин или email Ely.by", 2 => "Логин или email TLauncher.org", _ => "Ник игрока" };
-        Nickname.PlaceholderText = mode == 0 ? "Как тебя будут звать в этом мире?" : "Логин аккаунта";
-        AuthHint.Text = mode switch { 1 => "Пароль и токен не сохраняются. Код 2FA нужен, если включён в аккаунте.", 2 => "Вход в аккаунт TLauncher.org. Пароль не сохраняется. Подходит для нашего офлайн-сервера.", _ => "От 3 до 16 символов: латинские буквы, цифры и _" };
-        SignInButton.Content = mode == 0 ? "Применить ник" : "Проверить и войти";
+        LoginLabel.Text = mode switch { 1 => Localization.Text("Логин или email Ely.by"), 2 => Localization.Text("Логин или email TLauncher.org"), _ => Localization.Text("Ник игрока") };
+        Nickname.PlaceholderText = mode == 0 ? Localization.Text("Как тебя будут звать в этом мире?") : Localization.Text("Логин аккаунта");
+        AuthHint.Text = mode switch { 1 => Localization.Text("Пароль и токен не сохраняются. Код 2FA нужен, если включён в аккаунте."), 2 => Localization.Text("Вход в аккаунт TLauncher.org. Пароль не сохраняется. Подходит для нашего офлайн-сервера."), _ => Localization.Text("От 3 до 16 символов: латинские буквы, цифры и _") };
+        SignInButton.Content = mode == 0 ? Localization.Text("Применить ник") : Localization.Text("Проверить и войти");
         LoginStatus.Text = "";
         Password.Text = Totp.Text = "";
     }
@@ -222,7 +239,7 @@ public partial class MainWindow : Window
         if (JavaPathPanel == null) return;
         bool custom = JavaMode.SelectedIndex == 1;
         JavaPathPanel.IsVisible = custom;
-        JavaHint.Text = custom ? "Выбери Java 21 x64. Внешнюю Java нужно выбирать заново после переноса на другой ПК." : "Java скачивается и хранится в папке лаунчера.";
+        JavaHint.Text = custom ? Localization.Text("Выбери Java 21 x64. Внешнюю Java нужно выбирать заново после переноса на другой ПК.") : Localization.Text("Java скачивается и хранится в папке лаунчера.");
     }
     enum Page { Overview, Settings, ClientMods }
     void ShowPage(Page page)
@@ -233,7 +250,7 @@ public partial class MainWindow : Window
         OverviewButton.Classes.Set("active", OverviewPanel.IsVisible);
         SettingsButton.Classes.Set("active", SettingsPanel.IsVisible);
         ClientModsButton.Classes.Set("active", ClientModsPanel.IsVisible);
-        PageTitle.Text = page switch { Page.Settings => "Настройки", Page.ClientMods => "Клиентские моды", _ => "Обзор" };
+        PageTitle.Text = page switch { Page.Settings => Localization.Text("Настройки"), Page.ClientMods => Localization.Text("Клиентские моды"), _ => Localization.Text("Обзор") };
         if (page == Page.ClientMods) LoadOptionalMods();
     }
 
@@ -245,16 +262,16 @@ public partial class MainWindow : Window
             var mods = OptionalMods.Scan(service);
             var state = OptionalMods.Load(service);
             OptionalModsEmpty.IsVisible = mods.Count == 0;
-            OptionalModsStatus.Text = mods.Count == 0 ? "Папка клиента: optional-mods/"
-                : $"Найдено: {mods.Count} · Выбор сохраняется автоматически";
+            OptionalModsStatus.Text = mods.Count == 0 ? Localization.Text("Папка клиента: optional-mods/")
+                : Localization.Format("Найдено: {0} · Выбор сохраняется автоматически", mods.Count);
             foreach (var mod in mods)
             {
                 var toggle = new ToggleSwitch { IsChecked = state.Enabled.Contains(mod.Id), IsEnabled = mod.Error == null,
-                    OnContent = "Вкл", OffContent = "Выкл", VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center };
+                    OnContent = Localization.Text("Вкл"), OffContent = Localization.Text("Выкл"), VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center };
                 Avalonia.Automation.AutomationProperties.SetName(toggle, mod.Name);
                 var details = new StackPanel { Spacing = 5, Margin = new Thickness(0, 0, 18, 0), Children = {
                     new TextBlock { Text = mod.Name, FontWeight = FontWeight.SemiBold, FontSize = 15, TextWrapping = TextWrapping.Wrap },
-                    new TextBlock { Text = mod.Error ?? (string.IsNullOrEmpty(mod.Version) ? mod.FileName : mod.Version + " · " + mod.FileName),
+                    new TextBlock { Text = mod.Error != null ? Localization.Translate(mod.Error) : (string.IsNullOrEmpty(mod.Version) ? mod.FileName : mod.Version + " · " + mod.FileName),
                         Foreground = SolidColorBrush.Parse(mod.Error == null ? "#B9D2BF" : "#FFB8A6"), FontSize = 11, TextWrapping = TextWrapping.Wrap }
                 } };
                 var row = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), Children = { details, toggle } };
@@ -265,9 +282,9 @@ public partial class MainWindow : Window
                     try
                     {
                         OptionalMods.SetEnabled(service, mod.Id, toggle.IsChecked == true);
-                        OptionalModsStatus.Text = "Сохранено. Изменения применятся при следующем запуске игры.";
+                        OptionalModsStatus.Text = Localization.Text("Сохранено. Изменения применятся при следующем запуске игры.");
                     }
-                    catch (Exception error) { LoadOptionalMods(); OptionalModsStatus.Text = error.Message; }
+                    catch (Exception error) { LoadOptionalMods(); OptionalModsStatus.Text = Localization.Translate(error.Message); }
                 };
             }
             UpdateGameActions();
@@ -275,17 +292,17 @@ public partial class MainWindow : Window
         catch (Exception error) when (error is IOException or InvalidDataException or UnauthorizedAccessException or System.Text.Json.JsonException)
         {
             OptionalModsEmpty.IsVisible = false;
-            OptionalModsStatus.Text = "Не удалось прочитать список: " + error.Message;
+            OptionalModsStatus.Text = Localization.Text("Не удалось прочитать список: ") + error.Message;
         }
     }
 
     async void RefreshOptionalModsClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => await Operation(async () =>
     {
-        OperationTitle.Text = "Обновляем список модов";
+        OperationTitle.Text = Localization.Text("Обновляем список модов");
         await Task.Run(() => service.RefreshOptionalMods(text => Dispatcher.UIThread.Post(() => Detail(text))));
         LoadOptionalMods();
-        OperationTitle.Text = "Список модов обновлён";
-        Detail("Опциональные моды загружены. Выбери, какие включить.");
+        OperationTitle.Text = Localization.Text("Список модов обновлён");
+        Detail(Localization.Text("Опциональные моды загружены. Выбери, какие включить."));
     });
     void OverviewClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => ShowPage(Page.Overview);
     void SettingsClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => ShowPage(Page.Settings);
@@ -304,16 +321,16 @@ public partial class MainWindow : Window
         if (statusPending) return;
         statusPending = true;
         RefreshServerButton.IsEnabled = false;
-        RefreshServerButton.Content = "Проверяем…";
-        ServerState.Text = "Проверяем…";
+        RefreshServerButton.Content = Localization.Text("Проверяем…");
+        ServerState.Text = Localization.Text("Проверяем…");
         ServerDot.Fill = SolidColorBrush.Parse("#C8A46E");
-        try { var state = await Task.Run(() => LauncherService.Status(service.Config.Server)); ServerState.Text = "Сервер доступен"; ServerDot.Fill = SolidColorBrush.Parse("#A8CD93"); PlayerCount.Text = $"{state.Online} / {state.Max}"; }
-        catch { ServerState.Text = "Нет ответа"; ServerDot.Fill = SolidColorBrush.Parse("#C48A73"); PlayerCount.Text = "— / —"; }
+        try { var state = await Task.Run(() => LauncherService.Status(service.Config.Server)); ServerState.Text = Localization.Text("Сервер доступен"); ServerDot.Fill = SolidColorBrush.Parse("#A8CD93"); PlayerCount.Text = $"{state.Online} / {state.Max}"; }
+        catch { ServerState.Text = Localization.Text("Нет ответа"); ServerDot.Fill = SolidColorBrush.Parse("#C48A73"); PlayerCount.Text = "— / —"; }
         finally
         {
             statusPending = false;
             RefreshServerButton.IsEnabled = true;
-            RefreshServerButton.Content = "↻ Обновить";
+            RefreshServerButton.Content = Localization.Text("↻ Обновить");
         }
     }
     async Task Operation(Func<Task> work)
@@ -325,11 +342,11 @@ public partial class MainWindow : Window
         try { await work(); }
         catch (Exception error)
         {
-            OperationTitle.Text = "Не получилось завершить";
-            var text = error is TaskCanceledException ? "Сервис не ответил вовремя. Попробуй ещё раз." : error.Message;
+            OperationTitle.Text = Localization.Text("Не получилось завершить");
+            var text = error is TaskCanceledException ? Localization.Text("Сервис не ответил вовремя. Попробуй ещё раз.") : Localization.Translate(error.Message);
             Detail(text);
             var window = new Window { Title = "Create Launcher", Width = 470, Height = 235, CanResize = false, WindowStartupLocation = WindowStartupLocation.CenterOwner, Background = SolidColorBrush.Parse("#1B2921") };
-            var close = new Button { Content = "Понятно", HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right };
+            var close = new Button { Content = Localization.Text("Понятно"), HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right };
             close.Click += (_, _) => window.Close();
             window.Content = new StackPanel { Margin = new Thickness(24), Spacing = 20, Children = { new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap, MaxHeight = 130 }, close } };
             await window.ShowDialog(this);
@@ -338,24 +355,24 @@ public partial class MainWindow : Window
     }
     Task InstallClient()
     {
-        OperationTitle.Text = "Готовим твой клиент";
+        OperationTitle.Text = Localization.Text("Готовим твой клиент");
         return Task.Run(() => service.Install(text => Dispatcher.UIThread.Post(() => Detail(text)), ratio => Dispatcher.UIThread.Post(() => InstallProgress.Value = Math.Clamp(ratio * 100, 0, 100))));
     }
     async void InstallClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => await Operation(async () => { await InstallClient(); UpdateInstalled(); });
     async void PlayClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
-        if (activeSession == null || currentProfile == null) { AuthForm.IsVisible = true; AccountFlyout.ShowAt(AccountButton); LoginStatus.Text = "Выбери аккаунт или проверь его данные перед запуском."; return; }
+        if (activeSession == null || currentProfile == null) { AuthForm.IsVisible = true; AccountFlyout.ShowAt(AccountButton); LoginStatus.Text = Localization.Text("Выбери аккаунт или проверь его данные перед запуском."); return; }
         var session = activeSession;
         var profile = currentProfile;
         await Operation(async () => {
-            OperationTitle.Text = "Заходим в игру";
+            OperationTitle.Text = Localization.Text("Заходим в игру");
             if (!service.IsInstalled) { await InstallClient(); UpdateInstalled(); }
             var prefs = service.LoadPreferences();
-            Detail("Запускаем Minecraft…");
+            Detail(Localization.Text("Запускаем Minecraft…"));
             await service.Launch(session, prefs.MemoryMb, profile.Provider == 1);
-            OperationTitle.Text = "Хорошей игры, " + session.Username + "!";
-            Detail("Minecraft запущен · сервер в списке мультиплеера");
-            PlayButton.Content = "Играть  →";
+            OperationTitle.Text = Localization.Text("Хорошей игры, ") + session.Username + "!";
+            Detail(Localization.Text("Minecraft запущен · сервер в списке мультиплеера"));
+            PlayButton.Content = Localization.Text("Играть  →");
             _ = ObserveGame();
         });
     }
@@ -371,7 +388,7 @@ public partial class MainWindow : Window
         busy = true;
         SignInButton.IsEnabled = AuthMode.IsEnabled = Nickname.IsEnabled = InstallButton.IsEnabled = PlayButton.IsEnabled = SettingsPanel.IsEnabled = false;
         LoginStatus.Foreground = SolidColorBrush.Parse("#D1EDB5");
-        LoginStatus.Text = mode == 0 ? "Проверяем ник…" : "Проверяем данные аккаунта…";
+        LoginStatus.Text = mode == 0 ? Localization.Text("Проверяем ник…") : Localization.Text("Проверяем данные аккаунта…");
         try
         {
             var session = mode switch { 1 => await LauncherService.Ely(login, password, totp), 2 => await LauncherService.TLauncher(login, password), _ => LauncherService.Offline(login) };
@@ -384,25 +401,25 @@ public partial class MainWindow : Window
             sessions[LauncherService.ProfileKey(profile)] = session;
             RefreshProfile();
             BuildSavedProfiles(); AuthForm.IsVisible = false;
-            LoginStatus.Text = mode == 0 ? "Ник применён" : "Аккаунт проверен";
-            Detail(mode == 0 ? "Ник выбран. Можно запускать игру." : "Данные аккаунта подтверждены сервисом.");
+            LoginStatus.Text = mode == 0 ? Localization.Text("Ник применён") : Localization.Text("Аккаунт проверен");
+            Detail(mode == 0 ? Localization.Text("Ник выбран. Можно запускать игру.") : Localization.Text("Данные аккаунта подтверждены сервисом."));
             AccountFlyout.Hide();
             _ = LoadSkin(profile);
         }
         catch (Exception error)
         {
             LoginStatus.Foreground = SolidColorBrush.Parse("#FFB8A6");
-            LoginStatus.Text = error is TaskCanceledException ? "Сервис не ответил вовремя. Повтори попытку." : error.Message;
+            LoginStatus.Text = error is TaskCanceledException ? Localization.Text("Сервис не ответил вовремя. Повтори попытку.") : Localization.Translate(error.Message);
         }
         finally { busy = false; SignInButton.IsEnabled = AuthMode.IsEnabled = Nickname.IsEnabled = SettingsPanel.IsEnabled = true; UpdateGameActions(); }
     }
     void RefreshProfile()
     {
-        ProfileName.Text = currentProfile?.Name ?? "Выбрать аккаунт";
-        ProfileDetail.Text = currentProfile == null ? "Войти в игру" : (activeSession == null ? "Войти · " : "") + (currentProfile.Provider switch { 1 => "Ely.by", 2 => "TLauncher", _ => "По нику" });
+        ProfileName.Text = currentProfile?.Name ?? Localization.Text("Выбрать аккаунт");
+        ProfileDetail.Text = currentProfile == null ? Localization.Text("Войти в игру") : (activeSession == null ? Localization.Text("Войти · ") : "") + (currentProfile.Provider switch { 1 => "Ely.by", 2 => "TLauncher", _ => Localization.Text("По нику") });
         var greeting = Greetings.Format(greetingIndex, currentProfile?.Name);
         GreetingTitle.Text = greeting.Title; GreetingSubtitle.Text = greeting.Subtitle;
-        Avatar.Reset(); ToolTip.SetTip(Avatar, "Скин пока не загружен");
+        Avatar.Reset(); ToolTip.SetTip(Avatar, Localization.Text("Скин пока не загружен"));
     }
     async Task LoadSkin(PlayerProfile profile)
     {
@@ -410,7 +427,7 @@ public partial class MainWindow : Window
         try
         {
             var bytes = await service.GetSkin(profile);
-            if (bytes != null && request == skinRequest) { Avatar.Load(bytes); ToolTip.SetTip(Avatar, "Скин " + profile.Name); }
+            if (bytes != null && request == skinRequest) { Avatar.Load(bytes); ToolTip.SetTip(Avatar, Localization.Text("Скин ") + profile.Name); }
         }
         catch (Exception error) when (error is IOException or ArgumentException) { }
     }
@@ -419,7 +436,7 @@ public partial class MainWindow : Window
         if (busy) return;
         AuthForm.IsVisible = true; Nickname.Text = ""; Password.Text = Totp.Text = ""; LoginStatus.Text = ""; Nickname.Focus();
     }
-    static string ProviderName(int provider) => provider switch { 1 => "Ely.by", 2 => "TLauncher", _ => "По нику" };
+    static string ProviderName(int provider) => provider switch { 1 => "Ely.by", 2 => "TLauncher", _ => Localization.Text("По нику") };
     void BuildSavedProfiles()
     {
         int revision = ++profilesRevision;
@@ -431,13 +448,13 @@ public partial class MainWindow : Window
             var key = LauncherService.ProfileKey(profile);
             var head = new SkinHead { Width = 30, Height = 30 }; savedHeads.Add(head);
             var name = new TextBlock { Text = profile.Name, FontSize = 12, FontWeight = FontWeight.SemiBold };
-            var status = profile.Provider == 0 || sessions.ContainsKey(key) ? ProviderName(profile.Provider) : ProviderName(profile.Provider) + " · нужен вход";
+            var status = profile.Provider == 0 || sessions.ContainsKey(key) ? ProviderName(profile.Provider) : ProviderName(profile.Provider) + Localization.Text(" · нужен вход");
             var labels = new StackPanel { Spacing = 3, Children = { name, new TextBlock { Text = status, FontSize = 9, Foreground = SolidColorBrush.Parse("#B9D2BF") } } };
             var content = new StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, Spacing = 10, Children = { head, labels } };
             var select = new Button { Content = content, HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch, Padding = new Thickness(10, 8), Background = SolidColorBrush.Parse(currentProfile != null && LauncherService.ProfileKey(currentProfile) == key ? "#3A6445" : "#294B36") };
             select.Click += (_, _) => SelectSavedProfile(profile);
             var remove = new Button { Content = "×", Padding = new Thickness(9, 5), VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center };
-            ToolTip.SetTip(remove, "Удалить сохранённый аккаунт");
+            ToolTip.SetTip(remove, Localization.Text("Удалить сохранённый аккаунт"));
             remove.Click += (_, _) => {
                 if (busy) return;
                 service.RemoveProfile(profile); sessions.Remove(key);
@@ -464,20 +481,20 @@ public partial class MainWindow : Window
         AuthMode.SelectedIndex = profile.Provider; Nickname.Text = profile.Name;
         Password.Text = Totp.Text = "";
         RefreshProfile(); BuildSavedProfiles(); _ = LoadSkin(profile);
-        if (session != null) { AuthForm.IsVisible = false; AccountFlyout.Hide(); Detail("Выбран аккаунт " + profile.Name); }
-        else { AuthForm.IsVisible = true; LoginStatus.Text = "Введи пароль для проверки и входа в сохранённый аккаунт."; Password.Focus(); }
+        if (session != null) { AuthForm.IsVisible = false; AccountFlyout.Hide(); Detail(Localization.Text("Выбран аккаунт ") + profile.Name); }
+        else { AuthForm.IsVisible = true; LoginStatus.Text = Localization.Text("Введи пароль для проверки и входа в сохранённый аккаунт."); Password.Focus(); }
     }
     async Task ObserveGame()
     {
         var process = service.GameProcess; if (process == null) return;
         await process.WaitForExitAsync(); UpdateGameActions(); if (busy) return;
-        OperationTitle.Text = process.ExitCode == 0 ? "До новых встреч" : "Minecraft завершился с ошибкой";
-        Detail(process.ExitCode == 0 ? "Клиент закрыт. Можно вернуться в игру." : "Журнал запуска: data/logs/game.log");
+        OperationTitle.Text = process.ExitCode == 0 ? Localization.Text("До новых встреч") : Localization.Text("Minecraft завершился с ошибкой");
+        Detail(process.ExitCode == 0 ? Localization.Text("Клиент закрыт. Можно вернуться в игру.") : Localization.Text("Журнал запуска: data/logs/game.log"));
     }
     string SelectedJava() => JavaMode.SelectedIndex == 0 ? "" : JavaPathBox.Text?.Trim() ?? "";
     async void BrowseJavaClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
-        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions { Title = "Выбрать Java 21", AllowMultiple = false });
+        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions { Title = Localization.Text("Выбрать Java 21"), AllowMultiple = false });
         var path = files.FirstOrDefault()?.TryGetLocalPath();
         if (path != null) JavaPathBox.Text = path;
     }
@@ -487,41 +504,41 @@ public partial class MainWindow : Window
         {
             foreach (var candidate in service.FindJavaCandidates().Where(x => x.StartsWith(service.Game)))
             {
-                try { JavaHint.Text = await LauncherService.CheckJava(candidate) + " · портативная"; return; }
+                try { JavaHint.Text = await LauncherService.CheckJava(candidate) + Localization.Text(" · портативная"); return; }
                 catch (Exception error) when (error is IOException or InvalidOperationException or System.ComponentModel.Win32Exception) { }
             }
-            JavaHint.Text = "Портативная Java 21 пока не установлена. Она загрузится вместе с клиентом.";
+            JavaHint.Text = Localization.Text("Портативная Java 21 пока не установлена. Она загрузится вместе с клиентом.");
             return;
         }
         JavaHint.Text = await LauncherService.CheckJava(Path.GetFullPath(path, service.Root));
     });
     async void FindJavaClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => await Operation(async () => {
-        OperationTitle.Text = "Ищем Java 21";
+        OperationTitle.Text = Localization.Text("Ищем Java 21");
         var found = new List<(string Path, string Description)>();
         foreach (var candidate in service.FindJavaCandidates())
         {
-            Detail("Проверяем " + candidate);
+            Detail(Localization.Text("Проверяем ") + candidate);
             try { found.Add((candidate, await LauncherService.CheckJava(candidate))); }
             catch (Exception error) when (error is IOException or InvalidOperationException or System.ComponentModel.Win32Exception) { }
         }
-        if (found.Count == 0) { JavaHint.Text = "Java 21 x64 не найдена. Выбери автоматический режим или укажи путь вручную."; return; }
-        var dialog = new Window { Title = "Найденные Java 21", Width = 660, Height = 350, WindowStartupLocation = WindowStartupLocation.CenterOwner, Background = SolidColorBrush.Parse("#1B2921") };
+        if (found.Count == 0) { JavaHint.Text = Localization.Text("Java 21 x64 не найдена. Выбери автоматический режим или укажи путь вручную."); return; }
+        var dialog = new Window { Title = Localization.Text("Найденные Java 21"), Width = 660, Height = 350, WindowStartupLocation = WindowStartupLocation.CenterOwner, Background = SolidColorBrush.Parse("#1B2921") };
         var list = new ListBox { ItemsSource = found.Select(x => x.Description + "\n" + x.Path).ToArray(), SelectedIndex = 0 };
-        var choose = new Button { Content = "Использовать выбранную", HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right };
+        var choose = new Button { Content = Localization.Text("Использовать выбранную"), HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right };
         choose.Click += (_, _) => { if (list.SelectedIndex < 0) return; JavaMode.SelectedIndex = 1; JavaPathBox.Text = found[list.SelectedIndex].Path; JavaHint.Text = found[list.SelectedIndex].Description; dialog.Close(); };
         var grid = new Grid { Margin = new Thickness(20), RowDefinitions = RowDefinitions.Parse("*,Auto"), RowSpacing = 16 };
         grid.Children.Add(list); Grid.SetRow(choose, 1); grid.Children.Add(choose); dialog.Content = grid;
         await dialog.ShowDialog(this);
-        OperationTitle.Text = "Java найдена"; Detail("Сохрани настройки, чтобы применить выбранную Java.");
+        OperationTitle.Text = Localization.Text("Java найдена"); Detail(Localization.Text("Сохрани настройки, чтобы применить выбранную Java."));
     });
     async void SaveSettingsClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => await Operation(async () => {
-        if (MemoryInput.Value is not decimal memory || memory != decimal.Truncate(memory)) throw new ArgumentException("Укажи целое число МБ памяти");
+        if (MemoryInput.Value is not decimal memory || memory != decimal.Truncate(memory)) throw new ArgumentException(Localization.Text("Укажи целое число МБ памяти"));
         var java = SelectedJava();
-        if (JavaMode.SelectedIndex == 1 && string.IsNullOrWhiteSpace(java)) throw new ArgumentException("Выбери исполняемый файл Java");
+        if (JavaMode.SelectedIndex == 1 && string.IsNullOrWhiteSpace(java)) throw new ArgumentException(Localization.Text("Выбери исполняемый файл Java"));
         if (!string.IsNullOrWhiteSpace(java)) JavaHint.Text = await LauncherService.CheckJava(Path.GetFullPath(java, service.Root));
         var prefs = service.LoadPreferences();
         service.SavePreferences(prefs.Nickname, (int)memory, java);
-        SettingsHint.Text = "Настройки сохранены"; OperationTitle.Text = "Настройки сохранены"; Detail("Выбранные Java и память применятся при следующем запуске.");
+        SettingsHint.Text = Localization.Text("Настройки сохранены"); OperationTitle.Text = Localization.Text("Настройки сохранены"); Detail(Localization.Text("Выбранные Java и память применятся при следующем запуске."));
     });
     static void MakeIcon(string path)
     {

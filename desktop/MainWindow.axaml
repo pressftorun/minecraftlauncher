@@ -9,17 +9,17 @@
           <TextBlock Text="CREATE" VerticalAlignment="Center" FontWeight="Bold" FontSize="17" LetterSpacing="2"/>
         </StackPanel>
         <StackPanel Grid.Row="1" Spacing="7">
-          <Button x:Name="OverviewButton" Classes="nav active" Content="◈     Обзор" Click="OverviewClick"/>
-          <Button x:Name="SettingsButton" Classes="nav" Content="⚙     Настройки" Click="SettingsClick"/>
+          <Button x:Name="OverviewButton" Classes="nav active" Content="{DynamicResource L0}" Click="OverviewClick"/>
+          <Button x:Name="SettingsButton" Classes="nav" Content="{DynamicResource L1}" Click="SettingsClick"/>
           <Button x:Name="ClientModsButton" Classes="nav" Click="ClientModsClick">
             <StackPanel Orientation="Horizontal" Spacing="14">
               <TextBlock Text="▦" VerticalAlignment="Center" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ContentPresenter}}"/>
-              <TextBlock Text="Клиентские&#10;моды" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ContentPresenter}}"/>
+              <TextBlock Text="{DynamicResource L2}" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ContentPresenter}}"/>
             </StackPanel>
           </Button>
         </StackPanel>
         <StackPanel Grid.Row="3" Spacing="12">
-          <Button Classes="nav" Content="▦     Папка клиента" Click="OpenGameClick"/>
+          <Button Classes="nav" Content="{DynamicResource L3}" Click="OpenGameClick"/>
           <TextBlock x:Name="LauncherVersionLabel" FontSize="10" Foreground="#6D8877" Margin="15,0"/>
         </StackPanel>
       </Grid>
@@ -37,18 +37,18 @@
             <Flyout Placement="BottomEdgeAlignedRight">
               <ScrollViewer MaxHeight="520" HorizontalScrollBarVisibility="Disabled">
               <StackPanel Width="360" Spacing="13">
-                <TextBlock Text="Аккаунт игрока" FontSize="18" FontWeight="SemiBold"/>
+                <TextBlock Text="{DynamicResource L7}" FontSize="18" FontWeight="SemiBold"/>
                 <StackPanel x:Name="SavedProfilesSection" Spacing="8" IsVisible="False">
-                  <TextBlock Text="Сохранённые аккаунты" Classes="muted" FontSize="11"/>
+                  <TextBlock Text="{DynamicResource L8}" Classes="muted" FontSize="11"/>
                   <ScrollViewer MaxHeight="160"><StackPanel x:Name="SavedProfiles" Spacing="5"/></ScrollViewer>
                 </StackPanel>
-                <Button Content="+ Добавить аккаунт" HorizontalAlignment="Stretch" Click="NewAccountClick"/>
+                <Button Content="{DynamicResource L9}" HorizontalAlignment="Stretch" Click="NewAccountClick"/>
                 <StackPanel x:Name="AuthForm" Spacing="12">
-                <ComboBox x:Name="AuthMode" SelectedIndex="0" HorizontalAlignment="Stretch" SelectionChanged="AuthChanged"><ComboBoxItem Content="По нику"/><ComboBoxItem Content="Ely.by"/><ComboBoxItem Content="TLauncher"/></ComboBox>
+                <ComboBox x:Name="AuthMode" SelectedIndex="0" HorizontalAlignment="Stretch" SelectionChanged="AuthChanged"><ComboBoxItem Content="{DynamicResource L10}"/><ComboBoxItem Content="Ely.by"/><ComboBoxItem Content="TLauncher"/></ComboBox>
                 <StackPanel Spacing="6"><TextBlock x:Name="LoginLabel" Text="Ник игрока" Classes="muted" FontSize="11"/><TextBox x:Name="Nickname" PlaceholderText="Твой ник" MaxLength="100"/></StackPanel>
                 <Grid x:Name="PasswordFields" IsVisible="False" ColumnDefinitions="*,12,120">
-                  <StackPanel x:Name="PasswordInputPanel" Spacing="6"><TextBlock Text="Пароль" Classes="muted" FontSize="11"/><TextBox x:Name="Password" PasswordChar="●" PlaceholderText="Не сохраняется"/></StackPanel>
-                  <StackPanel x:Name="TotpPanel" Grid.Column="2" Spacing="6"><TextBlock Text="Код 2FA" Classes="muted" FontSize="11"/><TextBox x:Name="Totp" MaxLength="6" PlaceholderText="Если включён"/></StackPanel>
+                  <StackPanel x:Name="PasswordInputPanel" Spacing="6"><TextBlock Text="{DynamicResource L13}" Classes="muted" FontSize="11"/><TextBox x:Name="Password" PasswordChar="●" PlaceholderText="{DynamicResource L14}"/></StackPanel>
+                  <StackPanel x:Name="TotpPanel" Grid.Column="2" Spacing="6"><TextBlock Text="{DynamicResource L15}" Classes="muted" FontSize="11"/><TextBox x:Name="Totp" MaxLength="6" PlaceholderText="{DynamicResource L16}"/></StackPanel>
                 </Grid>
                 <TextBlock x:Name="AuthHint" Text="Латинские буквы, цифры и _ · 3–16 символов" Classes="muted" FontSize="10" TextWrapping="Wrap"/>
                 <TextBlock x:Name="LoginStatus" Text="" FontSize="11" TextWrapping="Wrap"/>
@@ -63,7 +63,7 @@
       <Border x:Name="LauncherUpdateBanner" Grid.Row="1" IsVisible="False" Classes="card" Margin="28,0,28,12" Padding="14,10">
         <Grid ColumnDefinitions="*,Auto">
           <TextBlock x:Name="LauncherUpdateBannerText" VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,0,12,0"/>
-          <Button x:Name="BannerUpdateButton" Grid.Column="1" Content="Обновить" Click="ApplyLauncherUpdateClick"/>
+          <Button x:Name="BannerUpdateButton" Grid.Column="1" Content="{DynamicResource L19}" Click="ApplyLauncherUpdateClick"/>
         </Grid>
       </Border>
       <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Disabled">
@@ -72,54 +72,62 @@
             <StackPanel Spacing="8"><TextBlock x:Name="GreetingTitle" FontSize="29" FontWeight="SemiBold" LetterSpacing="-0.7" TextWrapping="Wrap"/><TextBlock x:Name="GreetingSubtitle" IsVisible="False" Foreground="#B4CCBC" FontSize="12" TextWrapping="Wrap"/></StackPanel>
             <Grid ColumnDefinitions="1.3*,12,*">
               <StackPanel Spacing="10">
-              <Border Classes="card" Padding="16,17" MinHeight="108"><StackPanel Spacing="9"><Grid ColumnDefinitions="*,Auto"><TextBlock Text="СЕРВЕР" Classes="eyebrow" VerticalAlignment="Center"/><Button x:Name="RefreshServerButton" Grid.Column="1" Content="↻ Обновить" FontSize="10" Padding="7,3" MinHeight="0" Click="RefreshServerClick" ToolTip.Tip="Обновить статус сервера и число игроков"/></Grid><StackPanel Orientation="Horizontal" Spacing="8"><Ellipse x:Name="ServerDot" Width="7" Height="7" Fill="#C8A46E" VerticalAlignment="Center"/><TextBlock x:Name="ServerState" Text="Проверяем…" FontSize="14" FontWeight="SemiBold"/></StackPanel><StackPanel Orientation="Horizontal" Spacing="8"><TextBlock Text="Игроки онлайн" Classes="muted" FontSize="11"/><TextBlock x:Name="PlayerCount" Text="— / —" FontSize="11" FontWeight="SemiBold" Foreground="#D1EDB5"/></StackPanel><TextBlock x:Name="ServerAddress" Classes="muted" FontSize="10"/></StackPanel></Border>
-                <Button x:Name="BlueMapButton" Content="Карта мира · BlueMap  ↗" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" FontSize="11" Click="OpenBlueMapClick"/>
+              <Border Classes="card" Padding="16,17" MinHeight="108"><StackPanel Spacing="9"><Grid ColumnDefinitions="*,Auto"><TextBlock Text="{DynamicResource L20}" Classes="eyebrow" VerticalAlignment="Center"/><Button x:Name="RefreshServerButton" Grid.Column="1" Content="↻ Обновить" FontSize="10" Padding="7,3" MinHeight="0" Click="RefreshServerClick" ToolTip.Tip="{DynamicResource L22}"/></Grid><StackPanel Orientation="Horizontal" Spacing="8"><Ellipse x:Name="ServerDot" Width="7" Height="7" Fill="#C8A46E" VerticalAlignment="Center"/><TextBlock x:Name="ServerState" Text="Проверяем…" FontSize="14" FontWeight="SemiBold"/></StackPanel><StackPanel Orientation="Horizontal" Spacing="8"><TextBlock Text="{DynamicResource L24}" Classes="muted" FontSize="11"/><TextBlock x:Name="PlayerCount" Text="— / —" FontSize="11" FontWeight="SemiBold" Foreground="#D1EDB5"/></StackPanel><TextBlock x:Name="ServerAddress" Classes="muted" FontSize="10"/></StackPanel></Border>
+                <Button x:Name="BlueMapButton" Content="{DynamicResource L25}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" FontSize="11" Click="OpenBlueMapClick"/>
               </StackPanel>
-              <Border Grid.Column="2" Classes="card" Padding="16,17" MinHeight="108" VerticalAlignment="Top"><StackPanel Spacing="9"><TextBlock Text="СБОРКА КЛИЕНТА" Classes="eyebrow"/><TextBlock x:Name="VersionLabel" FontSize="23" FontWeight="SemiBold"/><TextBlock x:Name="LoaderLabel" Classes="muted" FontSize="10"/></StackPanel></Border>
+              <Border Grid.Column="2" Classes="card" Padding="16,17" MinHeight="108" VerticalAlignment="Top"><StackPanel Spacing="9"><TextBlock Text="{DynamicResource L26}" Classes="eyebrow"/><TextBlock x:Name="VersionLabel" FontSize="23" FontWeight="SemiBold"/><TextBlock x:Name="LoaderLabel" Classes="muted" FontSize="10"/></StackPanel></Border>
             </Grid>
           </StackPanel>
           <StackPanel x:Name="ClientModsPanel" IsVisible="False" Spacing="20">
             <Grid ColumnDefinitions="*,Auto">
               <StackPanel Spacing="7" Margin="0,0,16,0">
-                <TextBlock Text="Клиентские моды" FontSize="28" FontWeight="SemiBold" LetterSpacing="-0.5"/>
-                <TextBlock Text="Включённые моды загрузятся при следующем запуске игры." Classes="muted" TextWrapping="Wrap"/>
+                <TextBlock Text="{DynamicResource L27}" FontSize="28" FontWeight="SemiBold" LetterSpacing="-0.5"/>
+                <TextBlock Text="{DynamicResource L28}" Classes="muted" TextWrapping="Wrap"/>
               </StackPanel>
-              <Button x:Name="RefreshOptionalModsButton" Grid.Column="1" Content="↻ Обновить список" VerticalAlignment="Center" Click="RefreshOptionalModsClick"/>
+              <Button x:Name="RefreshOptionalModsButton" Grid.Column="1" Content="{DynamicResource L29}" VerticalAlignment="Center" Click="RefreshOptionalModsClick"/>
             </Grid>
             <TextBlock x:Name="OptionalModsStatus" Classes="muted" TextWrapping="Wrap"/>
             <StackPanel x:Name="OptionalModsList" Spacing="10"/>
             <Border x:Name="OptionalModsEmpty" Classes="card" Padding="24,28">
               <StackPanel Spacing="10">
-                <TextBlock Text="Опциональные моды не найдены" FontSize="16" FontWeight="SemiBold"/>
-                <TextBlock Text="Нажми «Обновить список», чтобы загрузить моды из сборки, или добавь JAR в папку optional-mods внутри папки клиента." Classes="muted" TextWrapping="Wrap"/>
+                <TextBlock Text="{DynamicResource L30}" FontSize="16" FontWeight="SemiBold"/>
+                <TextBlock Text="{DynamicResource L31}" Classes="muted" TextWrapping="Wrap"/>
               </StackPanel>
             </Border>
           </StackPanel>
           <StackPanel x:Name="SettingsPanel" IsVisible="False" Spacing="20">
-            <StackPanel Spacing="7"><TextBlock Text="Настройки клиента" FontSize="28" FontWeight="SemiBold" LetterSpacing="-0.5"/><TextBlock Text="Подстрой Minecraft под свой компьютер." Foreground="#91A596" FontSize="12"/></StackPanel>
+            <Border Classes="card" Padding="20">
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Text="{DynamicResource L216}" VerticalAlignment="Center"/>
+                <ComboBox x:Name="LanguageSelector" Grid.Column="1" MinWidth="155" SelectionChanged="LanguageChanged">
+                  <ComboBoxItem Content="Русский"/><ComboBoxItem Content="English"/>
+                </ComboBox>
+              </Grid>
+            </Border>
+            <StackPanel Spacing="7"><TextBlock Text="{DynamicResource L32}" FontSize="28" FontWeight="SemiBold" LetterSpacing="-0.5"/><TextBlock Text="{DynamicResource L33}" Foreground="#91A596" FontSize="12"/></StackPanel>
             <Border Classes="card" Padding="20">
               <StackPanel Spacing="12">
-                <Grid ColumnDefinitions="*,Auto"><TextBlock Text="Оперативная память" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center"/><StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"><NumericUpDown x:Name="MemoryInput" Minimum="2048" Maximum="16384" Increment="256" Value="6144" FormatString="0" Width="125"/><TextBlock Text="МБ" VerticalAlignment="Center" Classes="muted"/></StackPanel></Grid>
+                <Grid ColumnDefinitions="*,Auto"><TextBlock Text="{DynamicResource L34}" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center"/><StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"><NumericUpDown x:Name="MemoryInput" Minimum="2048" Maximum="16384" Increment="256" Value="6144" FormatString="0" Width="125"/><TextBlock Text="{DynamicResource L35}" VerticalAlignment="Center" Classes="muted"/></StackPanel></Grid>
                 <Slider x:Name="MemorySlider" Minimum="2048" Maximum="16384" Value="6144" TickFrequency="1024" TickPlacement="BottomRight"/>
                 <Canvas x:Name="MemoryScale" Height="17"/>
-                <TextBlock Text="Все значения в МБ. Рекомендуем 6144–8192 МБ. Оставь часть памяти для системы." Classes="muted" FontSize="11" TextWrapping="Wrap"/>
+                <TextBlock Text="{DynamicResource L36}" Classes="muted" FontSize="11" TextWrapping="Wrap"/>
               </StackPanel>
             </Border>
             <Border Classes="card" Padding="20"><StackPanel Spacing="13">
               <TextBlock Text="Java" FontSize="15" FontWeight="SemiBold"/>
-              <ComboBox x:Name="JavaMode" SelectedIndex="0" HorizontalAlignment="Stretch" SelectionChanged="JavaModeChanged"><ComboBoxItem Content="Автоматически — портативная Java 21"/><ComboBoxItem Content="Выбрать свою Java 21"/></ComboBox>
-              <Grid x:Name="JavaPathPanel" IsVisible="False" ColumnDefinitions="*,12,Auto"><TextBox x:Name="JavaPathBox" PlaceholderText="Путь к java.exe или java"/><Button Grid.Column="2" Content="Выбрать…" Click="BrowseJavaClick"/></Grid>
+              <ComboBox x:Name="JavaMode" SelectedIndex="0" HorizontalAlignment="Stretch" SelectionChanged="JavaModeChanged"><ComboBoxItem Content="{DynamicResource L37}"/><ComboBoxItem Content="{DynamicResource L38}"/></ComboBox>
+              <Grid x:Name="JavaPathPanel" IsVisible="False" ColumnDefinitions="*,12,Auto"><TextBox x:Name="JavaPathBox" PlaceholderText="{DynamicResource L39}"/><Button Grid.Column="2" Content="{DynamicResource L40}" Click="BrowseJavaClick"/></Grid>
               <TextBlock x:Name="JavaHint" Text="Java скачивается и хранится в папке лаунчера." Classes="muted" FontSize="11" TextWrapping="Wrap"/>
-              <StackPanel Orientation="Horizontal" Spacing="10"><Button Content="Найти Java" Click="FindJavaClick"/><Button x:Name="CheckJavaButton" Content="Проверить Java" Click="CheckJavaClick"/></StackPanel>
+              <StackPanel Orientation="Horizontal" Spacing="10"><Button Content="{DynamicResource L42}" Click="FindJavaClick"/><Button x:Name="CheckJavaButton" Content="{DynamicResource L43}" Click="CheckJavaClick"/></StackPanel>
             </StackPanel></Border>
-            <Grid ColumnDefinitions="*,Auto"><TextBlock x:Name="SettingsHint" Text="Настройки хранятся рядом с лаунчером." Classes="muted" FontSize="11" VerticalAlignment="Center"/><Button Grid.Column="1" Classes="primary" Content="Сохранить настройки" Click="SaveSettingsClick"/></Grid>
+            <Grid ColumnDefinitions="*,Auto"><TextBlock x:Name="SettingsHint" Text="Настройки хранятся рядом с лаунчером." Classes="muted" FontSize="11" VerticalAlignment="Center"/><Button Grid.Column="1" Classes="primary" Content="{DynamicResource L45}" Click="SaveSettingsClick"/></Grid>
             <Border Classes="card" Padding="20">
               <StackPanel Spacing="12">
-                <TextBlock Text="Обновление лаунчера" FontSize="15" FontWeight="SemiBold"/>
+                <TextBlock Text="{DynamicResource L46}" FontSize="15" FontWeight="SemiBold"/>
                 <TextBlock x:Name="LauncherUpdateStatus" Text="Проверка обновлений при запуске." Classes="muted" TextWrapping="Wrap"/>
                 <StackPanel Orientation="Horizontal" Spacing="10">
-                  <Button x:Name="CheckLauncherUpdateButton" Content="Проверить обновления" Click="CheckLauncherUpdateClick"/>
-                  <Button x:Name="ApplyLauncherUpdateButton" Classes="primary" Content="Обновить и перезапустить" IsVisible="False" Click="ApplyLauncherUpdateClick"/>
+                  <Button x:Name="CheckLauncherUpdateButton" Content="{DynamicResource L48}" Click="CheckLauncherUpdateClick"/>
+                  <Button x:Name="ApplyLauncherUpdateButton" Classes="primary" Content="{DynamicResource L49}" IsVisible="False" Click="ApplyLauncherUpdateClick"/>
                 </StackPanel>
               </StackPanel>
             </Border>
@@ -128,7 +136,7 @@
       </ScrollViewer>
       <Border Grid.Row="3" Background="#23402D" BorderBrush="#304537" BorderThickness="0,1,0,0" Padding="28,17,28,20">
         <StackPanel Spacing="13"><ProgressBar x:Name="InstallProgress" Height="3" CornerRadius="2" Maximum="100" Foreground="#A8E580" Background="#304336"/>
-          <Grid ColumnDefinitions="*,Auto,12,Auto"><StackPanel VerticalAlignment="Center" Spacing="6" Margin="0,0,10,0"><TextBlock x:Name="OperationTitle" Text="Твой мир ждёт" FontSize="12" FontWeight="SemiBold"/><TextBlock x:Name="OperationDetail" Text="Установи клиент и присоединяйся к серверу" Classes="muted" FontSize="10" TextTrimming="CharacterEllipsis" MaxWidth="310" HorizontalAlignment="Left"/></StackPanel><Button x:Name="InstallButton" Grid.Column="1" Content="Проверить файлы" VerticalAlignment="Center" Click="InstallClick"/><Button x:Name="PlayButton" Grid.Column="3" Classes="primary" Content="Установить и играть  →" Click="PlayClick"/></Grid>
+          <Grid ColumnDefinitions="*,Auto,12,Auto"><StackPanel VerticalAlignment="Center" Spacing="6" Margin="0,0,10,0"><TextBlock x:Name="OperationTitle" Text="Твой мир ждёт" FontSize="12" FontWeight="SemiBold"/><TextBlock x:Name="OperationDetail" Text="Установи клиент и присоединяйся к серверу" Classes="muted" FontSize="10" TextTrimming="CharacterEllipsis" MaxWidth="310" HorizontalAlignment="Left"/></StackPanel><Button x:Name="InstallButton" Grid.Column="1" Content="{DynamicResource L52}" VerticalAlignment="Center" Click="InstallClick"/><Button x:Name="PlayButton" Grid.Column="3" Classes="primary" Content="Установить и играть  →" Click="PlayClick"/></Grid>
         </StackPanel>
       </Border>
     </Grid>

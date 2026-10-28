@@ -32,8 +32,8 @@ internal static class Greetings
     }
     public static (string Title, string Subtitle) Format(int index, string? nickname)
     {
-        var nick = string.IsNullOrWhiteSpace(nickname) ? "строитель" : nickname;
+        var nick = string.IsNullOrWhiteSpace(nickname) ? Localization.Text("строитель") : nickname;
         var value = All[index];
-        return (value.Title.Replace("{nick}", nick), value.Subtitle.Replace("{nick}", nick));
+        return (Localization.Text(value.Title).Replace("{nick}", nick), Localization.Text(value.Subtitle).Replace("{nick}", nick));
     }
 }

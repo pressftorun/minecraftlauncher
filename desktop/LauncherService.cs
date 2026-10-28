@@ -50,7 +50,7 @@ public sealed class LauncherService
         foreach (var key in new[] { "TEMP", "TMP", "TMPDIR" }) Environment.SetEnvironmentVariable(key, Path.Combine(Data, "tmp"));
     }
 
-    public static T Read<T>(string path) => JsonSerializer.Deserialize<T>(File.ReadAllText(path), Json) ?? throw new InvalidDataException("Пустой JSON: " + Path.GetFileName(path));
+    public static T Read<T>(string path) => JsonSerializer.Deserialize<T>(File.ReadAllText(path), Json) ?? throw new InvalidDataException(Localization.Text("Пустой JSON: ") + Path.GetFileName(path));
     public static void Write<T>(string path, T value)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
@@ -96,7 +96,7 @@ public sealed class LauncherService
     public static void VerifyProfile(MSession session)
     {
         Offline(session.Username);
-        if (!Guid.TryParse(session.UUID, out _) || string.IsNullOrWhiteSpace(session.AccessToken)) throw new InvalidDataException("Сервис авторизации вернул неполный профиль");
+        if (!Guid.TryParse(session.UUID, out _) || string.IsNullOrWhiteSpace(session.AccessToken)) throw new InvalidDataException(Localization.Text("Сервис авторизации вернул неполный профиль"));
     }
 
     public async Task<byte[]?> GetSkin(PlayerProfile profile)
@@ -124,10 +124,10 @@ public sealed class LauncherService
             using var response = await Http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, timeout.Token);
             response.EnsureSuccessStatusCode();
             var bytes = await ReadLimited(response.Content, 2097152, timeout.Token);
-            if (bytes.Length < 24 || !bytes.AsSpan(0, 8).SequenceEqual(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 })) throw new InvalidDataException("Сервис не вернул PNG-скин");
+            if (bytes.Length < 24 || !bytes.AsSpan(0, 8).SequenceEqual(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 })) throw new InvalidDataException(Localization.Text("Сервис не вернул PNG-скин"));
             uint width = System.Buffers.Binary.BinaryPrimitives.ReadUInt32BigEndian(bytes.AsSpan(16, 4));
             uint height = System.Buffers.Binary.BinaryPrimitives.ReadUInt32BigEndian(bytes.AsSpan(20, 4));
-            if (width is < 64 or > 1024 || width % 64 != 0 || height < width / 2 || height > 1024) throw new InvalidDataException("Размер скина не поддерживается");
+            if (width is < 64 or > 1024 || width % 64 != 0 || height < width / 2 || height > 1024) throw new InvalidDataException(Localization.Text("Размер скина не поддерживается"));
             Directory.CreateDirectory(Path.GetDirectoryName(cache)!);
             var temporary = cache + "." + Guid.NewGuid().ToString("N") + ".tmp";
             try { await File.WriteAllBytesAsync(temporary, bytes); File.Move(temporary, cache, true); }
@@ -139,13 +139,13 @@ public sealed class LauncherService
     }
     static async Task<byte[]> ReadLimited(HttpContent content, int maximum, CancellationToken cancellation)
     {
-        if (content.Headers.ContentLength > maximum) throw new InvalidDataException("Ответ сервиса слишком большой");
+        if (content.Headers.ContentLength > maximum) throw new InvalidDataException(Localization.Text("Ответ сервиса слишком большой"));
         await using var stream = await content.ReadAsStreamAsync(cancellation);
         using var output = new MemoryStream();
         var buffer = new byte[16384]; int count;
         while ((count = await stream.ReadAsync(buffer, cancellation)) > 0)
         {
-            if (output.Length + count > maximum) throw new InvalidDataException("Ответ сервиса слишком большой");
+            if (output.Length + count > maximum) throw new InvalidDataException(Localization.Text("Ответ сервиса слишком большой"));
             output.Write(buffer, 0, count);
         }
         return output.ToArray();
@@ -164,12 +164,12 @@ public sealed class LauncherService
         bool trusted = uri.Host == "textures.minecraft.net" || (provider == 2
             ? uri.Host == "auth.tlauncher.org" || uri.Host.EndsWith(".tlauncher.org") || uri.Host.EndsWith(".tlauncher.ru") || uri.Host.EndsWith(".tl.vg")
             : uri.Host == "ely.by" || uri.Host.EndsWith(".ely.by"));
-        if (!trusted || uri.Scheme is not ("http" or "https")) throw new InvalidDataException("Неизвестный сервер скина");
+        if (!trusted || uri.Scheme is not ("http" or "https")) throw new InvalidDataException(Localization.Text("Неизвестный сервер скина"));
         return new UriBuilder(uri) { Scheme = "https", Port = -1 }.Uri;
     }
     public void SavePreferences(string nick, int memoryMb, string javaPath = "")
     {
-        if (memoryMb is < 2048 or > 16384) throw new ArgumentException("Память: от 2048 до 16384 МБ");
+        if (memoryMb is < 2048 or > 16384) throw new ArgumentException(Localization.Text("Память: от 2048 до 16384 МБ"));
         if (!string.IsNullOrWhiteSpace(javaPath))
         {
             javaPath = Path.GetFullPath(javaPath, Root);
@@ -182,7 +182,7 @@ public sealed class LauncherService
     {
         path = Path.GetFullPath(path);
         if (Path.GetFileName(path).Equals("javaw.exe", StringComparison.OrdinalIgnoreCase) && File.Exists(Path.Combine(Path.GetDirectoryName(path)!, "java.exe"))) path = Path.Combine(Path.GetDirectoryName(path)!, "java.exe");
-        if (!File.Exists(path)) throw new FileNotFoundException("Не найден исполняемый файл Java");
+        if (!File.Exists(path)) throw new FileNotFoundException(Localization.Text("Не найден исполняемый файл Java"));
         using var process = new Process { StartInfo = new ProcessStartInfo(path) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardError = true, RedirectStandardOutput = true } };
         process.StartInfo.ArgumentList.Add("-XshowSettings:properties");
         process.StartInfo.ArgumentList.Add("-version");
@@ -191,14 +191,14 @@ public sealed class LauncherService
         var stderr = process.StandardError.ReadToEndAsync();
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         try { await process.WaitForExitAsync(timeout.Token); }
-        catch (OperationCanceledException) { process.Kill(true); throw new InvalidOperationException("Java не ответила за 10 секунд"); }
+        catch (OperationCanceledException) { process.Kill(true); throw new InvalidOperationException(Localization.Text("Java не ответила за 10 секунд")); }
         var text = await stdout + "\n" + await stderr;
         var version = Regex.Match(text, @"java\.version\s*=\s*(\S+)");
         var bits = Regex.Match(text, @"sun\.arch\.data\.model\s*=\s*(\d+)");
-        if (process.ExitCode != 0 || !version.Success) throw new InvalidOperationException("Не удалось проверить версию Java");
-        if (!Regex.IsMatch(version.Groups[1].Value, @"^21(?:\.|$|-)")) throw new InvalidOperationException("Для этой сборки нужна Java 21. Найдена " + version.Groups[1].Value);
-        if (bits.Groups[1].Value != "64") throw new InvalidOperationException("Для сборки нужна 64-битная Java");
-        return "Java " + version.Groups[1].Value + " · 64 бит";
+        if (process.ExitCode != 0 || !version.Success) throw new InvalidOperationException(Localization.Text("Не удалось проверить версию Java"));
+        if (!Regex.IsMatch(version.Groups[1].Value, @"^21(?:\.|$|-)")) throw new InvalidOperationException(Localization.Text("Для этой сборки нужна Java 21. Найдена ") + version.Groups[1].Value);
+        if (bits.Groups[1].Value != "64") throw new InvalidOperationException(Localization.Text("Для сборки нужна 64-битная Java"));
+        return "Java " + version.Groups[1].Value + Localization.Text(" · 64 бит");
     }
 
     public IEnumerable<string> FindJavaCandidates()
@@ -219,7 +219,7 @@ public sealed class LauncherService
 
     public static MSession Offline(string? name)
     {
-        if (string.IsNullOrWhiteSpace(name) || !Regex.IsMatch(name, "^[A-Za-z0-9_]{3,16}$")) throw new ArgumentException("Ник: 3–16 латинских букв, цифр или знаков _");
+        if (string.IsNullOrWhiteSpace(name) || !Regex.IsMatch(name, "^[A-Za-z0-9_]{3,16}$")) throw new ArgumentException(Localization.Text("Ник: 3–16 латинских букв, цифр или знаков _"));
         var hash = MD5.HashData(Encoding.UTF8.GetBytes("OfflinePlayer:" + name));
         hash[6] = (byte)((hash[6] & 0x0f) | 0x30);
         hash[8] = (byte)((hash[8] & 0x3f) | 0x80);
@@ -228,7 +228,7 @@ public sealed class LauncherService
 
     public static async Task<MSession> Ely(string login, string password, string totp)
     {
-        if (string.IsNullOrWhiteSpace(login) || string.IsNullOrEmpty(password)) throw new ArgumentException("Введите логин и пароль Ely.by");
+        if (string.IsNullOrWhiteSpace(login) || string.IsNullOrEmpty(password)) throw new ArgumentException(Localization.Text("Введите логин и пароль Ely.by"));
         using var response = await Http.PostAsJsonAsync("https://authserver.ely.by/auth/authenticate", new {
             username = login, password = password + (string.IsNullOrWhiteSpace(totp) ? "" : ":" + totp.Trim()),
             clientToken = Guid.NewGuid().ToString(), requestUser = true
@@ -236,30 +236,30 @@ public sealed class LauncherService
         using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         var value = body.RootElement;
         if (!response.IsSuccessStatusCode)
-            throw new InvalidOperationException(value.TryGetProperty("errorMessage", out var error) ? error.GetString() : "Ошибка входа Ely.by");
+            throw new InvalidOperationException(value.TryGetProperty("errorMessage", out var error) ? error.GetString() : Localization.Text("Ошибка входа Ely.by"));
         var profile = value.GetProperty("selectedProfile");
         return new MSession { Username = profile.GetProperty("name").GetString(), UUID = profile.GetProperty("id").GetString(), AccessToken = value.GetProperty("accessToken").GetString(), UserType = "mojang" };
     }
 
     public static async Task<MSession> TLauncher(string login, string password)
     {
-        if (string.IsNullOrWhiteSpace(login) || string.IsNullOrEmpty(password)) throw new ArgumentException("Введите логин и пароль TLauncher.org");
+        if (string.IsNullOrWhiteSpace(login) || string.IsNullOrEmpty(password)) throw new ArgumentException(Localization.Text("Введите логин и пароль TLauncher.org"));
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
         using var response = await Http.PostAsJsonAsync("https://auth.tlauncher.org/skin/authentication/authenticate", new {
             agent = new { name = "Minecraft", version = 1 }, username = login, password,
             clientToken = Guid.NewGuid().ToString("N"), requestUser = true
         }, timeout.Token);
-        if (response.Content.Headers.ContentType?.MediaType?.Contains("json") != true) throw new InvalidOperationException("Сервис TLauncher не вернул ответ авторизации. Попробуйте позже.");
+        if (response.Content.Headers.ContentType?.MediaType?.Contains("json") != true) throw new InvalidOperationException(Localization.Text("Сервис TLauncher не вернул ответ авторизации. Попробуйте позже."));
         using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync(timeout.Token));
         return ParseTLauncher(body.RootElement, response.IsSuccessStatusCode);
     }
     internal static MSession ParseTLauncher(JsonElement value, bool success)
     {
-        if (!success) throw new InvalidOperationException(value.TryGetProperty("errorMessage", out var error) ? error.GetString() : "TLauncher отклонил вход");
-        if (!value.TryGetProperty("selectedProfile", out var profile) || profile.ValueKind != JsonValueKind.Object || !value.TryGetProperty("accessToken", out var token)) throw new InvalidDataException("TLauncher не вернул игровой профиль");
+        if (!success) throw new InvalidOperationException(value.TryGetProperty("errorMessage", out var error) ? error.GetString() : Localization.Text("TLauncher отклонил вход"));
+        if (!value.TryGetProperty("selectedProfile", out var profile) || profile.ValueKind != JsonValueKind.Object || !value.TryGetProperty("accessToken", out var token)) throw new InvalidDataException(Localization.Text("TLauncher не вернул игровой профиль"));
         var name = profile.GetProperty("name").GetString();
         var id = profile.GetProperty("id").GetString();
-        if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(id) || string.IsNullOrEmpty(token.GetString())) throw new InvalidDataException("TLauncher вернул неполный профиль");
+        if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(id) || string.IsNullOrEmpty(token.GetString())) throw new InvalidDataException(Localization.Text("TLauncher вернул неполный профиль"));
         return new MSession { Username = name, UUID = id.Replace("-", ""), AccessToken = token.GetString(), UserType = "mojang" };
     }
 
@@ -273,12 +273,12 @@ public sealed class LauncherService
         var allowed = new[] { "mods", "optional-mods", "config", "defaultconfigs", "coremods", "resourcepacks", "shaderpacks", "texturepacks", "moonlight-global-datapacks" };
         var parts = name.Split('/');
         bool rootSettings = parts.Length == 1 && name == "options.txt";
-        if (name.Contains('\\') || name.Contains(':') || parts.Any(p => p is ".." or "." or "") || (!rootSettings && !allowed.Contains(parts[0]))) throw new InvalidDataException("Недопустимый путь пакета: " + name);
+        if (name.Contains('\\') || name.Contains(':') || parts.Any(p => p is ".." or "." or "") || (!rootSettings && !allowed.Contains(parts[0]))) throw new InvalidDataException(Localization.Text("Недопустимый путь пакета: ") + name);
         var target = Path.GetFullPath(Path.Combine(root, name));
-        if (!target.StartsWith(Path.GetFullPath(root) + Path.DirectorySeparatorChar, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal)) throw new InvalidDataException("Файл вне папки клиента");
+        if (!target.StartsWith(Path.GetFullPath(root) + Path.DirectorySeparatorChar, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal)) throw new InvalidDataException(Localization.Text("Файл вне папки клиента"));
         for (var dir = new DirectoryInfo(Path.GetDirectoryName(target)!); dir != null && dir.FullName.Length >= Path.GetFullPath(root).Length; dir = dir.Parent)
-            if (dir.Exists && (dir.Attributes & FileAttributes.ReparsePoint) != 0) throw new InvalidDataException("Ссылки внутри папки клиента не поддерживаются");
-        if (File.Exists(target) && (File.GetAttributes(target) & FileAttributes.ReparsePoint) != 0) throw new InvalidDataException("Файл клиента является ссылкой");
+            if (dir.Exists && (dir.Attributes & FileAttributes.ReparsePoint) != 0) throw new InvalidDataException(Localization.Text("Ссылки внутри папки клиента не поддерживаются"));
+        if (File.Exists(target) && (File.GetAttributes(target) & FileAttributes.ReparsePoint) != 0) throw new InvalidDataException(Localization.Text("Файл клиента является ссылкой"));
         return target;
     }
 
@@ -286,18 +286,18 @@ public sealed class LauncherService
     {
         using var z = ZipFile.OpenRead(archive);
         var comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
-        if (z.Entries.Select(e => e.FullName).Distinct(comparer).Count() != z.Entries.Count || z.Entries.Sum(e => e.Length) > 4L * 1024 * 1024 * 1024) throw new InvalidDataException("Некорректный или слишком большой пакет");
-        using var manifestStream = (z.GetEntry("manifest.json") ?? throw new InvalidDataException("Нет manifest.json")).Open();
-        var manifest = JsonSerializer.Deserialize<PackManifest>(manifestStream, Json) ?? throw new InvalidDataException("Пустой манифест");
-        if (manifest.Minecraft != config.Minecraft || manifest.Loader != config.Loader) throw new InvalidDataException("Версии сборки отличаются от launcher.json");
-        if (manifest.Files.Keys.Distinct(comparer).Count() != manifest.Files.Count) throw new InvalidDataException("Повторяющиеся пути пакета");
+        if (z.Entries.Select(e => e.FullName).Distinct(comparer).Count() != z.Entries.Count || z.Entries.Sum(e => e.Length) > 4L * 1024 * 1024 * 1024) throw new InvalidDataException(Localization.Text("Некорректный или слишком большой пакет"));
+        using var manifestStream = (z.GetEntry("manifest.json") ?? throw new InvalidDataException(Localization.Text("Нет manifest.json"))).Open();
+        var manifest = JsonSerializer.Deserialize<PackManifest>(manifestStream, Json) ?? throw new InvalidDataException(Localization.Text("Пустой манифест"));
+        if (manifest.Minecraft != config.Minecraft || manifest.Loader != config.Loader) throw new InvalidDataException(Localization.Text("Версии сборки отличаются от launcher.json"));
+        if (manifest.Files.Keys.Distinct(comparer).Count() != manifest.Files.Count) throw new InvalidDataException(Localization.Text("Повторяющиеся пути пакета"));
         var previous = File.Exists(state) ? Read<PackManifest>(state).Files : new Dictionary<string, string>();
         var files = manifest.Files.Where(p => !optionalOnly || p.Key.StartsWith("optional-mods/", StringComparison.Ordinal)).ToDictionary();
         foreach (var (name, digest) in files)
         {
             PackPath(game, name);
-            using var entry = (z.GetEntry(name) ?? throw new InvalidDataException("Нет файла " + name)).Open();
-            if (!Convert.ToHexStringLower(SHA256.HashData(entry)).Equals(digest, StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException("Повреждён файл " + name);
+            using var entry = (z.GetEntry(name) ?? throw new InvalidDataException(Localization.Text("Нет файла ") + name)).Open();
+            if (!Convert.ToHexStringLower(SHA256.HashData(entry)).Equals(digest, StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException(Localization.Text("Повреждён файл ") + name);
         }
         foreach (var (name, digest) in files)
         {
@@ -320,7 +320,7 @@ public sealed class LauncherService
 
     public async Task RefreshOptionalMods(Action<string> report)
     {
-        if (IsGameRunning) throw new InvalidOperationException("Закрой Minecraft перед обновлением модов.");
+        if (IsGameRunning) throw new InvalidOperationException(Localization.Text("Закрой Minecraft перед обновлением модов."));
         var archive = await GetPackArchive(report);
         ApplyPack(archive, Game, Path.Combine(Data, "pack-state.json"), Config, optionalOnly: true);
         OptionalMods.Apply(this);
@@ -342,7 +342,7 @@ public sealed class LauncherService
 
     public static async Task Download(string url, string target, string? digest = null, CancellationToken cancellation = default)
     {
-        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || uri.Scheme != "https") throw new ArgumentException("Нужен HTTPS-адрес загрузки");
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || uri.Scheme != "https") throw new ArgumentException(Localization.Text("Нужен HTTPS-адрес загрузки"));
         Directory.CreateDirectory(Path.GetDirectoryName(target)!);
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
         timeout.CancelAfter(TimeSpan.FromMinutes(5));
@@ -351,7 +351,7 @@ public sealed class LauncherService
             using var response = await Http.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, timeout.Token);
             response.EnsureSuccessStatusCode();
             await using (var file = File.Create(target + ".part")) await response.Content.CopyToAsync(file, timeout.Token);
-            if (digest != null && !Hash(target + ".part").Equals(digest, StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException("SHA-256 файла не совпадает");
+            if (digest != null && !Hash(target + ".part").Equals(digest, StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException(Localization.Text("SHA-256 файла не совпадает"));
             File.Move(target + ".part", target, true);
         }
         finally { if (File.Exists(target + ".part")) File.Delete(target + ".part"); }
@@ -360,14 +360,14 @@ public sealed class LauncherService
     internal static PackDownload ParsePackRelease(JsonElement release)
     {
         if (release.GetProperty("draft").GetBoolean() || release.GetProperty("prerelease").GetBoolean())
-            throw new InvalidDataException("Нужен опубликованный стабильный релиз клиента");
+            throw new InvalidDataException(Localization.Text("Нужен опубликованный стабильный релиз клиента"));
         var asset = release.GetProperty("assets").EnumerateArray().SingleOrDefault(a => a.GetProperty("name").GetString() == "client.zip");
-        if (asset.ValueKind != JsonValueKind.Object) throw new InvalidDataException("В релизе GitHub нет client.zip");
+        if (asset.ValueKind != JsonValueKind.Object) throw new InvalidDataException(Localization.Text("В релизе GitHub нет client.zip"));
         var url = asset.GetProperty("browser_download_url").GetString();
         var digest = asset.TryGetProperty("digest", out var hash) ? hash.GetString() : null;
         if (digest == null || !Regex.IsMatch(digest, "^sha256:[a-fA-F0-9]{64}$") ||
             !Uri.TryCreate(url, UriKind.Absolute, out var uri) || uri.Scheme != "https")
-            throw new InvalidDataException("Релиз клиента не содержит HTTPS-адрес и SHA-256");
+            throw new InvalidDataException(Localization.Text("Релиз клиента не содержит HTTPS-адрес и SHA-256"));
         return new(url!, digest[7..].ToLowerInvariant());
     }
 
@@ -377,14 +377,14 @@ public sealed class LauncherService
         PackDownload? pack = null;
         if (!string.IsNullOrWhiteSpace(Config.PackUrl))
         {
-            if (!Regex.IsMatch(Config.PackSha256, "^[a-fA-F0-9]{64}$")) throw new InvalidDataException("Для скачивания пакета нужен SHA-256");
+            if (!Regex.IsMatch(Config.PackSha256, "^[a-fA-F0-9]{64}$")) throw new InvalidDataException(Localization.Text("Для скачивания пакета нужен SHA-256"));
             pack = new(Config.PackUrl, Config.PackSha256);
         }
         else if (!string.IsNullOrWhiteSpace(Config.PackReleaseUrl))
         {
             if (!Uri.TryCreate(Config.PackReleaseUrl, UriKind.Absolute, out var uri) || uri.Scheme != "https")
-                throw new InvalidDataException("Нужен HTTPS-адрес релиза клиента");
-            report("Проверяем релиз клиента на GitHub…");
+                throw new InvalidDataException(Localization.Text("Нужен HTTPS-адрес релиза клиента"));
+            report(Localization.Text("Проверяем релиз клиента на GitHub…"));
             using var request = new HttpRequestMessage(HttpMethod.Get, uri);
             request.Headers.UserAgent.ParseAdd("CreateLauncher/0.3.1");
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
@@ -395,13 +395,13 @@ public sealed class LauncherService
         }
         if (pack == null)
         {
-            if (!File.Exists(bundled)) throw new FileNotFoundException("Положите client.zip рядом с лаунчером или настройте источник загрузки");
+            if (!File.Exists(bundled)) throw new FileNotFoundException(Localization.Text("Положите client.zip рядом с лаунчером или настройте источник загрузки"));
             return bundled;
         }
         var cached = Path.Combine(Data, "client.zip");
         foreach (var path in new[] { cached, bundled })
             if (File.Exists(path) && Hash(path).Equals(pack.Sha256, StringComparison.OrdinalIgnoreCase)) return path;
-        report("Загружаем клиентскую сборку…");
+        report(Localization.Text("Загружаем клиентскую сборку…"));
         await Download(pack.Url, cached, pack.Sha256);
         return cached;
     }
@@ -415,17 +415,17 @@ public sealed class LauncherService
 
     public async Task Install(Action<string> report, Action<double> progress)
     {
-        if (IsGameRunning) throw new InvalidOperationException("Закройте Minecraft перед проверкой или обновлением файлов");
+        if (IsGameRunning) throw new InvalidOperationException(Localization.Text("Закройте Minecraft перед проверкой или обновлением файлов"));
         var archive = await GetPackArchive(report);
-        report("Проверяем сборку…");
+        report(Localization.Text("Проверяем сборку…"));
         // Verify and install the pack before downloading large official game dependencies.
         await Task.Run(() => ApplyPack(archive, Game, Path.Combine(Data, "pack-state.json"), Config));
         var launcher = CreateLauncher(report, progress);
-        report("Устанавливаем Minecraft и Java 21…");
+        report(Localization.Text("Устанавливаем Minecraft и Java 21…"));
         await launcher.InstallAsync(Config.Minecraft);
         var java = launcher.GetJavaPath(await launcher.GetVersionAsync(Config.Minecraft));
         RequirePortableJava(java);
-        report("Устанавливаем NeoForge " + Config.Loader + "…");
+        report(Localization.Text("Устанавливаем NeoForge ") + Config.Loader + "…");
         var installer = new NeoForgeInstaller(launcher);
         var version = await installer.Install(new NeoForgeVersion(Config.Minecraft, Config.Loader), new ForgeInstallOptions {
             JavaPath = java, SkipIfAlreadyInstalled = false,
@@ -436,20 +436,20 @@ public sealed class LauncherService
         AddServer(Game, Config.Server, Config.Name);
         Write(Path.Combine(Data, "installed.json"), new Installed(version, Config.Minecraft, Config.Loader));
         progress(1);
-        report("Клиент готов. Увидимся на сервере!");
+        report(Localization.Text("Клиент готов. Увидимся на сервере!"));
     }
 
     void RequirePortableJava(string? java)
     {
-        if (string.IsNullOrWhiteSpace(java) || !File.Exists(java)) throw new InvalidOperationException("Java не найдена. Нажмите «Проверить файлы».");
-        if (!Path.GetFullPath(java).StartsWith(Game + Path.DirectorySeparatorChar, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal)) throw new InvalidOperationException("Java должна находиться в папке лаунчера");
+        if (string.IsNullOrWhiteSpace(java) || !File.Exists(java)) throw new InvalidOperationException(Localization.Text("Java не найдена. Нажмите «Проверить файлы»."));
+        if (!Path.GetFullPath(java).StartsWith(Game + Path.DirectorySeparatorChar, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal)) throw new InvalidOperationException(Localization.Text("Java должна находиться в папке лаунчера"));
     }
 
     public async Task<Process> BuildProcess(MSession session, int memory, bool ely)
     {
-        if (memory is < 2048 or > 16384) throw new ArgumentException("Память: от 2048 до 16384 МБ");
+        if (memory is < 2048 or > 16384) throw new ArgumentException(Localization.Text("Память: от 2048 до 16384 МБ"));
         var installed = Read<Installed>(Path.Combine(Data, "installed.json"));
-        if (installed.Minecraft != Config.Minecraft || installed.Loader != Config.Loader) throw new InvalidOperationException("Сначала обновите клиент");
+        if (installed.Minecraft != Config.Minecraft || installed.Loader != Config.Loader) throw new InvalidOperationException(Localization.Text("Сначала обновите клиент"));
         var launcher = CreateLauncher();
         var version = await launcher.GetVersionAsync(installed.Version);
         var preference = LoadPreferences();
@@ -483,7 +483,7 @@ public sealed class LauncherService
 
     public async Task Launch(MSession session, int memory, bool ely)
     {
-        if (IsGameRunning) throw new InvalidOperationException("Minecraft уже запущен");
+        if (IsGameRunning) throw new InvalidOperationException(Localization.Text("Minecraft уже запущен"));
         var process = await BuildProcess(session, memory, ely);
         OptionalMods.Apply(this);
         process.StartInfo.RedirectStandardOutput = true;
@@ -521,7 +521,7 @@ public sealed class LauncherService
             result |= (b & 127) << (i * 7);
             if ((b & 128) == 0) return result;
         }
-        throw new InvalidDataException("Некорректный VarInt");
+        throw new InvalidDataException(Localization.Text("Некорректный VarInt"));
     }
     public static async Task<ServerInfo> Status(string address)
     {
@@ -540,12 +540,12 @@ public sealed class LauncherService
         // A read timeout bounds the small synchronous VarInt reads as well.
         network.ReadTimeout = 6000;
         int length = ReadVarInt(network);
-        if (length is < 1 or > 2097152) throw new InvalidDataException("Размер пакета статуса");
+        if (length is < 1 or > 2097152) throw new InvalidDataException(Localization.Text("Размер пакета статуса"));
         var response = new byte[length]; await network.ReadExactlyAsync(response, timeout.Token);
         using var payload = new MemoryStream(response);
-        if (ReadVarInt(payload) != 0) throw new InvalidDataException("Пакет статуса");
+        if (ReadVarInt(payload) != 0) throw new InvalidDataException(Localization.Text("Пакет статуса"));
         int jsonLength = ReadVarInt(payload);
-        if (jsonLength < 0 || jsonLength > payload.Length - payload.Position) throw new InvalidDataException("Неполный статус");
+        if (jsonLength < 0 || jsonLength > payload.Length - payload.Position) throw new InvalidDataException(Localization.Text("Неполный статус"));
         using var status = JsonDocument.Parse(response.AsMemory((int)payload.Position, jsonLength));
         var players = status.RootElement.GetProperty("players");
         return new(players.GetProperty("online").GetInt32(), players.GetProperty("max").GetInt32());

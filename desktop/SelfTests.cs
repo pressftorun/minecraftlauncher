@@ -28,6 +28,7 @@ static class SelfTests
     }
     public static void Run()
     {
+        LocalizationTests.Run();
         var root = Path.Combine(AppContext.BaseDirectory, "test-data-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
         try

@@ -24,17 +24,17 @@ internal static class LauncherUpdater
         if (release.GetProperty("draft").GetBoolean() || release.GetProperty("prerelease").GetBoolean()) return null;
         var tag = release.GetProperty("tag_name").GetString() ?? "";
         if (!Regex.IsMatch(tag, @"^v\d+\.\d+\.\d+$") || !Version.TryParse(tag[1..], out var version))
-            throw new InvalidDataException("Неизвестный формат версии лаунчера");
+            throw new InvalidDataException(Localization.Text("Неизвестный формат версии лаунчера"));
         // Assembly versions contain a fourth component; compare release components only.
         if (version <= new Version(current.Major, current.Minor, current.Build)) return null;
         var name = $"CreateLauncher-{version}-{runtime}.zip";
         var asset = release.GetProperty("assets").EnumerateArray().SingleOrDefault(a => a.GetProperty("name").GetString() == name);
-        if (asset.ValueKind != JsonValueKind.Object) throw new InvalidDataException("В релизе нет сборки для этой системы");
+        if (asset.ValueKind != JsonValueKind.Object) throw new InvalidDataException(Localization.Text("В релизе нет сборки для этой системы"));
         var url = asset.GetProperty("browser_download_url").GetString() ?? "";
         var digest = asset.TryGetProperty("digest", out var hash) ? hash.GetString() ?? "" : "";
         if (!url.StartsWith($"https://github.com/{Repository}/releases/download/{tag}/", StringComparison.Ordinal)
             || !Regex.IsMatch(digest, "^sha256:[a-fA-F0-9]{64}$"))
-            throw new InvalidDataException("Обновление не содержит официальный адрес и SHA-256");
+            throw new InvalidDataException(Localization.Text("Обновление не содержит официальный адрес и SHA-256"));
         return new(version, url, digest[7..]);
     }
 
@@ -53,15 +53,15 @@ internal static class LauncherUpdater
     {
         var parts = name.Split('/');
         if (name.Contains('\\') || name.Contains(':') || parts.Any(p => p is "" or "." or ".."))
-            throw new InvalidDataException("Недопустимый путь обновления: " + name);
+            throw new InvalidDataException(Localization.Text("Недопустимый путь обновления: ") + name);
         root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root));
         var target = Path.GetFullPath(Path.Combine(root, name));
         var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
         var prefix = Path.EndsInDirectorySeparator(root) ? root : root + Path.DirectorySeparatorChar;
-        if (!target.StartsWith(prefix, comparison)) throw new InvalidDataException("Файл вне папки лаунчера");
+        if (!target.StartsWith(prefix, comparison)) throw new InvalidDataException(Localization.Text("Файл вне папки лаунчера"));
         for (var dir = new DirectoryInfo(Path.GetDirectoryName(target)!); dir != null && dir.FullName.Length >= root.Length; dir = dir.Parent)
-            if (dir.Exists && (dir.Attributes & FileAttributes.ReparsePoint) != 0) throw new InvalidDataException("Ссылки в папке обновления не поддерживаются");
-        if (File.Exists(target) && (File.GetAttributes(target) & FileAttributes.ReparsePoint) != 0) throw new InvalidDataException("Файл обновления является ссылкой");
+            if (dir.Exists && (dir.Attributes & FileAttributes.ReparsePoint) != 0) throw new InvalidDataException(Localization.Text("Ссылки в папке обновления не поддерживаются"));
+        if (File.Exists(target) && (File.GetAttributes(target) & FileAttributes.ReparsePoint) != 0) throw new InvalidDataException(Localization.Text("Файл обновления является ссылкой"));
         return target;
     }
 
@@ -76,18 +76,18 @@ internal static class LauncherUpdater
         using var zip = ZipFile.OpenRead(archive);
         var comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
         if (zip.Entries.Select(e => e.FullName).Distinct(comparer).Count() != zip.Entries.Count
-            || zip.Entries.Sum(e => e.Length) > 1024L * 1024 * 1024) throw new InvalidDataException("Некорректный архив обновления");
+            || zip.Entries.Sum(e => e.Length) > 1024L * 1024 * 1024) throw new InvalidDataException(Localization.Text("Некорректный архив обновления"));
         var files = new List<string>();
         foreach (var entry in zip.Entries)
         {
             SafePath(stage, entry.FullName);
-            if (((entry.ExternalAttributes >> 16) & 0xF000) == 0xA000) throw new InvalidDataException("Ссылка в архиве обновления");
+            if (((entry.ExternalAttributes >> 16) & 0xF000) == 0xA000) throw new InvalidDataException(Localization.Text("Ссылка в архиве обновления"));
             // Settings, the game and a bundled client archive belong to the player.
             if (entry.FullName is "launcher.json" or "client.zip") continue;
-            if (!IsApplicationFile(entry.FullName)) throw new InvalidDataException("Неизвестный файл обновления: " + entry.FullName);
+            if (!IsApplicationFile(entry.FullName)) throw new InvalidDataException(Localization.Text("Неизвестный файл обновления: ") + entry.FullName);
             files.Add(entry.FullName);
         }
-        if (!files.Contains(Executable)) throw new InvalidDataException("В обновлении нет исполняемого файла лаунчера");
+        if (!files.Contains(Executable)) throw new InvalidDataException(Localization.Text("В обновлении нет исполняемого файла лаунчера"));
         foreach (var name in files)
         {
             var target = SafePath(stage, name);
@@ -100,11 +100,11 @@ internal static class LauncherUpdater
 
     public static async Task Start(LauncherUpdate update, string root, Action<string> report)
     {
-        if (!Supported) throw new InvalidOperationException("Обновление доступно в установленной сборке лаунчера.");
+        if (!Supported) throw new InvalidOperationException(Localization.Text("Обновление доступно в установленной сборке лаунчера."));
         var workspace = SafePath(root, "data/launcher-updates/" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(workspace);
         var archive = Path.Combine(workspace, "update.zip");
-        report("Скачиваем лаунчер " + update.Version + "…");
+        report(Localization.Text("Скачиваем лаунчер ") + update.Version + "…");
         await LauncherService.Download(update.Url, archive, update.Sha256);
         var stage = Path.Combine(workspace, "app");
         var files = Extract(archive, stage);
@@ -113,12 +113,12 @@ internal static class LauncherUpdater
         LauncherService.Write(Path.Combine(workspace, "files.json"), files);
         var helper = new ProcessStartInfo(Path.Combine(stage, Executable)) { UseShellExecute = false, CreateNoWindow = true, WorkingDirectory = stage };
         foreach (var arg in new[] { "--apply-launcher-update", Environment.ProcessId.ToString(), Path.GetFullPath(root) }) helper.ArgumentList.Add(arg);
-        using var process = Process.Start(helper) ?? throw new IOException("Не удалось запустить установку обновления");
+        using var process = Process.Start(helper) ?? throw new IOException(Localization.Text("Не удалось запустить установку обновления"));
         var ready = Path.Combine(workspace, "ready");
         var deadline = Stopwatch.StartNew();
         while (!File.Exists(ready))
         {
-            if (process.HasExited || deadline.Elapsed > TimeSpan.FromSeconds(10)) throw new IOException("Помощник обновления не запустился. Лаунчер продолжает работу.");
+            if (process.HasExited || deadline.Elapsed > TimeSpan.FromSeconds(10)) throw new IOException(Localization.Text("Помощник обновления не запустился. Лаунчер продолжает работу."));
             await Task.Delay(100);
         }
     }
@@ -126,7 +126,7 @@ internal static class LauncherUpdater
     internal static void ReplaceFiles(string stage, string root, string backup, string[] files)
     {
         if (files.Length == 0 || files.Any(name => !IsApplicationFile(name))
-            || files.Distinct(StringComparer.OrdinalIgnoreCase).Count() != files.Length) throw new InvalidDataException("Некорректный список файлов обновления");
+            || files.Distinct(StringComparer.OrdinalIgnoreCase).Count() != files.Length) throw new InvalidDataException(Localization.Text("Некорректный список файлов обновления"));
         foreach (var name in files) { SafePath(stage, name); SafePath(root, name); SafePath(backup, name); }
         var replaced = new List<(string Name, bool Existed)>();
         try
@@ -172,16 +172,16 @@ internal static class LauncherUpdater
         root = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar);
         var expected = SafePath(root, "data/launcher-updates");
         if (Path.GetFileName(stage) != "app" || Path.GetDirectoryName(workspace) != expected)
-            throw new InvalidDataException("Помощник запущен вне папки обновления");
+            throw new InvalidDataException(Localization.Text("Помощник запущен вне папки обновления"));
         try
         {
             using var parent = Process.GetProcessById(parentId);
             if (!string.Equals(parent.MainModule?.FileName, Path.Combine(root, Executable), OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
-                throw new InvalidDataException("Процесс лаунчера не совпадает с папкой установки");
+                throw new InvalidDataException(Localization.Text("Процесс лаунчера не совпадает с папкой установки"));
             File.WriteAllText(Path.Combine(workspace, "ready"), "ready");
-            if (!parent.WaitForExit(60000)) throw new IOException("Лаунчер не закрылся; обновление отменено");
+            if (!parent.WaitForExit(60000)) throw new IOException(Localization.Text("Лаунчер не закрылся; обновление отменено"));
         }
-        catch (ArgumentException) { throw new IOException("Лаунчер уже закрыт; запустите проверку обновления заново"); }
+        catch (ArgumentException) { throw new IOException(Localization.Text("Лаунчер уже закрыт; запустите проверку обновления заново")); }
         try
         {
             ReplaceFiles(stage, root, Path.Combine(workspace, "backup"), LauncherService.Read<string[]>(Path.Combine(workspace, "files.json")));
