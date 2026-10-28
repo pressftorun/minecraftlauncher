@@ -30,5 +30,5 @@ jobs:
           done < "$RUNNER_TEMP/release-tags.txt"
           while IFS= read -r tag; do
             printf 'Изменения версии **%s**: [CHANGELOG.md](https://github.com/%s/blob/main/CHANGELOG.md).\n\n[Установка и использование](https://github.com/%s/blob/main/README.md).\n' "$tag" "$GITHUB_REPOSITORY" "$GITHUB_REPOSITORY" > "$RUNNER_TEMP/release-notes.md"
-            gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --notes-file "$RUNNER_TEMP/release-notes.md"
+            gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --notes-file "$RUNNER_TEMP/release-notes.md" --target main
           done < "$RUNNER_TEMP/release-tags.txt"
