@@ -19,10 +19,10 @@
 
 ## Скачать
 
-| Система | Лаунчер 0.3.6 |
+| Система | Лаунчер 0.3.7 |
 | --- | --- |
-| Windows x64 | [Скачать ZIP](https://github.com/pressftorun/minecraftlauncher/releases/download/v0.3.6/CreateLauncher-0.3.6-win-x64.zip) |
-| Linux x64 | [Скачать ZIP](https://github.com/pressftorun/minecraftlauncher/releases/download/v0.3.6/CreateLauncher-0.3.6-linux-x64.zip) |
+| Windows x64 | [Скачать ZIP](https://github.com/pressftorun/minecraftlauncher/releases/download/v0.3.7/CreateLauncher-0.3.7-win-x64.zip) |
+| Linux x64 | [Скачать ZIP](https://github.com/pressftorun/minecraftlauncher/releases/download/v0.3.7/CreateLauncher-0.3.7-linux-x64.zip) |
 
 [Все релизы](https://github.com/pressftorun/minecraftlauncher/releases) · [Изменения](CHANGELOG.md) · [Клиентская сборка](https://github.com/pressftorun/minecraftversion)
 
