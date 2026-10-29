@@ -36,9 +36,7 @@ public partial class MainWindow
                 if (this.FindControl<Button>(name) is { Content: string text } button)
                     button.Content = Localization.Translate(text);
             Nickname.PlaceholderText = Localization.Translate(Nickname.PlaceholderText ?? "");
-            var greeting = Greetings.Format(greetingIndex, currentProfile?.Name);
-            GreetingTitle.Text = greeting.Title;
-            GreetingSubtitle.Text = greeting.Subtitle;
+            RefreshGreeting();
             if (currentProfile == null) ProfileName.Text = Localization.Text("Выбрать аккаунт");
         }
         finally { changingLanguage = false; }

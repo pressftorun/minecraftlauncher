@@ -142,8 +142,9 @@ static class SelfTests
             Check(service.LoadProfile() == second, "Last selected account is remembered");
             service.RemoveProfile(second);
             Check(service.LoadProfiles().Count == 1 && service.LoadProfile() == null, "Selected account can be removed");
-            Check(Greetings.All.Length == 20, "Twenty greeting variants");
-            for (int i = 0; i < 100; i++) { int old = i % 20; Check(Greetings.Next(old) != old, "Greeting changes on next startup"); }
+            Check(Greetings.All.Length >= 50, "At least fifty greeting variants");
+            Check(Greetings.All.Select(greeting => greeting.Title).Distinct().Count() == Greetings.All.Length, "Greeting titles are unique");
+            for (int i = 0; i < 100; i++) { int old = i % Greetings.All.Length; int next = Greetings.Next(old); Check(next != old && next >= 0 && next < Greetings.All.Length, "Greeting changes without repeating the previous variant"); }
             Check(Greetings.Format(0, "Player").Title.Contains("Player"), "Personal greeting");
             Reject(() => LauncherService.VerifyProfile(new CmlLib.Core.Auth.MSession { Username = "Player", UUID = "bad", AccessToken = "" }));
             using var validTLauncher = System.Text.Json.JsonDocument.Parse("{\"selectedProfile\":{\"name\":\"Player\",\"id\":\"b50ad385-829d-3141-a216-7e7d7539ba7f\"},\"accessToken\":\"test-token\"}");

@@ -13,7 +13,7 @@ public partial class MainWindow : Window
 {
     readonly LauncherService service;
     readonly DispatcherTimer statusTimer = new() { Interval = TimeSpan.FromSeconds(30) };
-    readonly int greetingIndex;
+    int greetingIndex;
     MSession? activeSession;
     readonly Dictionary<string, MSession> sessions = new();
     readonly List<SkinHead> savedHeads = [];
@@ -99,6 +99,21 @@ public partial class MainWindow : Window
                         || ClientModsButton.Classes.Contains("active") != (page == Page.ClientMods))
                         throw new Exception("Page navigation failed: " + page);
                 }
+                ShowPage(Page.Overview);
+                var oldGreeting = greetingIndex;
+                ShowPage(Page.Settings);
+                ShowPage(Page.Overview);
+                if (greetingIndex == oldGreeting || GreetingTitle.Text != Greetings.Format(greetingIndex, currentProfile?.Name).Title)
+                    throw new Exception("Greeting did not change on return to Overview");
+                oldGreeting = greetingIndex;
+                ShowPage(Page.ClientMods);
+                ShowPage(Page.Overview);
+                if (greetingIndex == oldGreeting) throw new Exception("Greeting did not change after leaving Client mods");
+                oldGreeting = greetingIndex;
+                ShowPage(Page.Overview);
+                if (greetingIndex != oldGreeting) throw new Exception("Greeting changed without leaving Overview");
+                if (LauncherService.Read<int>(Path.Combine(service.Data, "greeting.json")) != greetingIndex)
+                    throw new Exception("The latest greeting was not saved");
                 ShowPage(Program.Arguments.Contains("--client-mods") ? Page.ClientMods
                     : Program.Arguments.Contains("--settings") ? Page.Settings : Page.Overview);
                 var saved = MemoryInput.Value;
@@ -244,6 +259,13 @@ public partial class MainWindow : Window
     enum Page { Overview, Settings, ClientMods }
     void ShowPage(Page page)
     {
+        if (page == Page.Overview && !OverviewPanel.IsVisible)
+        {
+            greetingIndex = Greetings.Next(greetingIndex);
+            try { LauncherService.Write(Path.Combine(service.Data, "greeting.json"), greetingIndex); }
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException) { }
+            RefreshGreeting();
+        }
         OverviewPanel.IsVisible = page == Page.Overview;
         SettingsPanel.IsVisible = page == Page.Settings;
         ClientModsPanel.IsVisible = page == Page.ClientMods;
@@ -420,9 +442,13 @@ public partial class MainWindow : Window
     {
         ProfileName.Text = currentProfile?.Name ?? Localization.Text("Выбрать аккаунт");
         ProfileDetail.Text = currentProfile == null ? Localization.Text("Войти в игру") : (activeSession == null ? Localization.Text("Войти · ") : "") + (currentProfile.Provider switch { 1 => "Ely.by", 2 => "TLauncher", _ => Localization.Text("По нику") });
+        RefreshGreeting();
+        Avatar.Reset(); ToolTip.SetTip(Avatar, Localization.Text("Скин пока не загружен"));
+    }
+    void RefreshGreeting()
+    {
         var greeting = Greetings.Format(greetingIndex, currentProfile?.Name);
         GreetingTitle.Text = greeting.Title; GreetingSubtitle.Text = greeting.Subtitle;
-        Avatar.Reset(); ToolTip.SetTip(Avatar, Localization.Text("Скин пока не загружен"));
     }
     async Task LoadSkin(PlayerProfile profile)
     {
