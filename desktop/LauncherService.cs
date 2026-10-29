@@ -38,6 +38,7 @@ public sealed class LauncherService
     public string Data => Path.Combine(Root, "data");
     public string Game => Path.Combine(Data, "minecraft");
     public LauncherConfig Config { get; }
+    internal CredentialStore Credentials { get; }
     public bool IsInstalled => File.Exists(Path.Combine(Data, "installed.json"));
     public Process? GameProcess { get; private set; }
     public bool IsGameRunning => GameProcess is { HasExited: false };
@@ -45,6 +46,7 @@ public sealed class LauncherService
     public LauncherService(string? root = null)
     {
         Root = Path.GetFullPath(root ?? AppContext.BaseDirectory);
+        Credentials = new CredentialStore(Root);
         Config = Read<LauncherConfig>(Path.Combine(Root, "launcher.json"));
         foreach (var folder in new[] { Data, Game, Path.Combine(Data, "tmp"), Path.Combine(Data, "home"), Path.Combine(Data, "logs") }) Directory.CreateDirectory(folder);
         foreach (var key in new[] { "TEMP", "TMP", "TMPDIR" }) Environment.SetEnvironmentVariable(key, Path.Combine(Data, "tmp"));
@@ -82,8 +84,9 @@ public sealed class LauncherService
         Write(Path.Combine(Data, "profiles.json"), profiles);
         Write(Path.Combine(Data, "profile.json"), profile);
     }
-    public void RemoveProfile(PlayerProfile profile)
+    public async Task RemoveProfile(PlayerProfile profile)
     {
+        await Credentials.Remove(profile);
         Write(Path.Combine(Data, "profiles.json"), LoadProfiles().Where(p => ProfileKey(p) != ProfileKey(profile)).ToList());
         var selected = LoadProfile();
         if (selected != null && ProfileKey(selected) == ProfileKey(profile))
@@ -423,7 +426,7 @@ public sealed class LauncherService
                 throw new InvalidDataException(Localization.Text("Нужен HTTPS-адрес релиза клиента"));
             report(Localization.Text("Проверяем релиз клиента на GitHub…"));
             using var request = new HttpRequestMessage(HttpMethod.Get, uri);
-            request.Headers.UserAgent.ParseAdd("CreateLauncher/0.3.8");
+            request.Headers.UserAgent.ParseAdd("CreateLauncher/0.3.9");
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             using var response = await Http.SendAsync(request, timeout.Token);
             response.EnsureSuccessStatusCode();
@@ -527,7 +530,7 @@ public sealed class LauncherService
         AddServer(Game, Config.Server, Config.Name);
         var process = await launcher.BuildProcessAsync(installed.Version, new MLaunchOption {
             Session = session, JavaPath = java, MaximumRamMb = memory, MinimumRamMb = 1024,
-            ExtraJvmArguments = args, GameLauncherName = "CreateServer", GameLauncherVersion = "0.3.8", ScreenWidth = 1280, ScreenHeight = 720
+            ExtraJvmArguments = args, GameLauncherName = "CreateServer", GameLauncherVersion = "0.3.9", ScreenWidth = 1280, ScreenHeight = 720
         });
         PrepareGameSkins(Game);
         process.StartInfo.WorkingDirectory = Game;

@@ -47,9 +47,14 @@
                 <ComboBox x:Name="AuthMode" SelectedIndex="0" HorizontalAlignment="Stretch" SelectionChanged="AuthChanged"><ComboBoxItem Content="{DynamicResource L10}"/><ComboBoxItem Content="Ely.by"/><ComboBoxItem Content="TLauncher"/></ComboBox>
                 <StackPanel Spacing="6"><TextBlock x:Name="LoginLabel" Text="Ник игрока" Classes="muted" FontSize="11"/><TextBox x:Name="Nickname" PlaceholderText="Твой ник" MaxLength="100"/></StackPanel>
                 <Grid x:Name="PasswordFields" IsVisible="False" ColumnDefinitions="*,12,120">
-                  <StackPanel x:Name="PasswordInputPanel" Spacing="6"><TextBlock Text="{DynamicResource L13}" Classes="muted" FontSize="11"/><TextBox x:Name="Password" PasswordChar="●" PlaceholderText="{DynamicResource L14}"/></StackPanel>
+                  <StackPanel x:Name="PasswordInputPanel" Spacing="6"><TextBlock Text="{DynamicResource L13}" Classes="muted" FontSize="11"/><TextBox x:Name="Password" PasswordChar="●" PlaceholderText="{DynamicResource PasswordPlaceholder}"/></StackPanel>
                   <StackPanel x:Name="TotpPanel" Grid.Column="2" Spacing="6"><TextBlock Text="{DynamicResource L15}" Classes="muted" FontSize="11"/><TextBox x:Name="Totp" MaxLength="6" PlaceholderText="{DynamicResource L16}"/></StackPanel>
                 </Grid>
+                  <StackPanel x:Name="RememberPasswordPanel" Spacing="6" IsVisible="False">
+                    <CheckBox x:Name="RememberPassword" Content="{DynamicResource RememberPasswordLabel}" FontSize="11"/>
+                    <TextBlock Text="{DynamicResource PasswordStorageHint}" Classes="muted" FontSize="10" TextWrapping="Wrap"/>
+                    <Button x:Name="ForgetPasswordButton" Content="{DynamicResource ForgetPasswordLabel}" IsVisible="False" Click="ForgetPasswordClick" FontSize="11"/>
+                  </StackPanel>
                 <TextBlock x:Name="AuthHint" Text="Латинские буквы, цифры и _ · 3–16 символов" Classes="muted" FontSize="10" TextWrapping="Wrap"/>
                 <TextBlock x:Name="LoginStatus" Text="" FontSize="11" TextWrapping="Wrap"/>
                 <Button x:Name="SignInButton" Classes="primary" Content="Применить ник" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Click="SignInClick"/>
@@ -115,7 +120,7 @@
             </Border>
             <Border Classes="card" Padding="20"><StackPanel Spacing="13">
               <TextBlock Text="Java" FontSize="15" FontWeight="SemiBold"/>
-              <ComboBox x:Name="JavaMode" SelectedIndex="0" HorizontalAlignment="Stretch" SelectionChanged="JavaModeChanged"><ComboBoxItem Content="{DynamicResource L37}"/><ComboBoxItem Content="{DynamicResource L38}"/></ComboBox>
+              <ComboBox x:Name="JavaMode" SelectedIndex="0" HorizontalAlignment="Stretch" SelectionChanged="JavaModeChanged"/>
               <Grid x:Name="JavaPathPanel" IsVisible="False" ColumnDefinitions="*,12,Auto"><TextBox x:Name="JavaPathBox" PlaceholderText="{DynamicResource L39}"/><Button Grid.Column="2" Content="{DynamicResource L40}" Click="BrowseJavaClick"/></Grid>
               <TextBlock x:Name="JavaHint" Text="Java скачивается и хранится в папке лаунчера." Classes="muted" FontSize="11" TextWrapping="Wrap"/>
               <StackPanel Orientation="Horizontal" Spacing="10"><Button Content="{DynamicResource L42}" Click="FindJavaClick"/><Button x:Name="CheckJavaButton" Content="{DynamicResource L43}" Click="CheckJavaClick"/></StackPanel>
@@ -142,5 +147,3 @@
     </Grid>
   </Grid>
 </Window>
-
-

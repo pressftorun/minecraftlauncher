@@ -19,6 +19,7 @@ public partial class MainWindow : Window
     readonly List<SkinHead> savedHeads = [];
     int profilesRevision;
     PlayerProfile? currentProfile;
+    PlayerProfile? loadedCredentialProfile;
     int skinRequest;
     bool busy, statusPending;
     bool memorySync;
@@ -76,9 +77,19 @@ public partial class MainWindow : Window
             if (Program.Arguments.Contains("--ui-check"))
             {
                 var originalLanguage = LanguageSelector.SelectedIndex;
+                var originalJavaMode = JavaMode.SelectedIndex;
+                var originalJavaPath = JavaPathBox.Text;
+                JavaMode.SelectedIndex = 1;
+                JavaPathBox.Text = "translation-check";
                 Password.Text = "language-switch-check";
                 LanguageSelector.SelectedIndex = 1;
+                ShowPage(Page.Settings);
+                JavaMode.IsDropDownOpen = true;
                 await Task.Delay(50);
+                if (!JavaMode.Items.Select(item => item is ComboBoxItem choice ? choice.Content as string : item as string)
+                    .SequenceEqual(new[] { "Automatic — portable Java 21", "Use your own Java 21" }))
+                    throw new Exception("English Java options did not update");
+                JavaMode.IsDropDownOpen = false;
                 if (Localization.Language != "en" || PageTitle.Text != "Overview"
                     && PageTitle.Text != "Settings" && PageTitle.Text != "Client mods"
                     || Password.Text != "language-switch-check"
@@ -86,10 +97,19 @@ public partial class MainWindow : Window
                     || !Equals(OverviewButton.Content, "◈     Overview"))
                     throw new Exception("English language switch failed");
                 LanguageSelector.SelectedIndex = 0;
+                JavaMode.IsDropDownOpen = true;
                 await Task.Delay(50);
+                if (!JavaMode.Items.Select(item => item is ComboBoxItem choice ? choice.Content as string : item as string)
+                    .SequenceEqual(new[] { "Автоматически — портативная Java 21", "Выбрать свою Java 21" }))
+                    throw new Exception("Russian Java options did not update");
+                JavaMode.IsDropDownOpen = false;
                 if (Localization.Language != "ru" || !Equals(OverviewButton.Content, "◈     Обзор"))
                     throw new Exception("Russian language switch failed");
+                if (JavaMode.SelectedIndex != 1 || JavaPathBox.Text != "translation-check" || !JavaPathPanel.IsVisible)
+                    throw new Exception("Language switch changed Java settings");
                 LanguageSelector.SelectedIndex = originalLanguage;
+                JavaMode.SelectedIndex = originalJavaMode;
+                JavaPathBox.Text = originalJavaPath;
                 Password.Text = "";
                 foreach (var page in Enum.GetValues<Page>())
                 {
@@ -124,10 +144,31 @@ public partial class MainWindow : Window
                 MemoryInput.Value = saved;
                 AuthMode.SelectedIndex = 1;
                 if (!PasswordFields.IsVisible || !TotpPanel.IsVisible) throw new Exception("Ely.by fields missing");
+                if (!RememberPasswordPanel.IsVisible || RememberPassword.IsChecked == true) throw new Exception("Password saving must be opt-in");
+                if (OperatingSystem.IsWindows())
+                {
+                    var credentialProfile = new PlayerProfile("CredentialUiCheck", "50a6be11e3b74d94a924ff08c99f48a9", 1);
+                    try
+                    {
+                        await service.Credentials.Save(credentialProfile, "ui-check@example.test", "test-only-ui-password");
+                        Totp.Text = "123456";
+                        await RestoreSavedLogin(credentialProfile);
+                        if (Nickname.Text != "ui-check@example.test" || Password.Text != "test-only-ui-password"
+                            || Totp.Text != "" || RememberPassword.IsChecked != true || !ForgetPasswordButton.IsVisible)
+                            throw new Exception("Saved credential form did not restore original login or cleared 2FA");
+                        await ForgetSavedPassword();
+                        if (Password.Text != "" || RememberPassword.IsChecked == true || ForgetPasswordButton.IsVisible
+                            || await service.Credentials.Load(credentialProfile) != null)
+                            throw new Exception("Forgetting a saved credential failed");
+                    }
+                    finally { await service.Credentials.Remove(credentialProfile); }
+                }
+                RememberPassword.IsChecked = true;
                 AuthMode.SelectedIndex = 2;
                 if (!PasswordFields.IsVisible || TotpPanel.IsVisible) throw new Exception("TLauncher fields incorrect");
+                if (RememberPassword.IsChecked == true) throw new Exception("Changing provider reused password-saving consent");
                 AuthMode.SelectedIndex = 0;
-                if (PasswordFields.IsVisible) throw new Exception("Offline password shown");
+                if (PasswordFields.IsVisible || RememberPasswordPanel.IsVisible) throw new Exception("Offline password shown");
             }
             statusTimer.Start(); await RefreshStatus();
             if (currentProfile != null)
@@ -240,18 +281,24 @@ public partial class MainWindow : Window
         if (PasswordFields == null) return;
         var mode = AuthMode.SelectedIndex;
         PasswordFields.IsVisible = mode != 0;
+        RememberPasswordPanel.IsVisible = mode != 0;
+        RememberPassword.IsEnabled = CredentialStore.Available;
+        RememberPassword.IsChecked = false;
+        ForgetPasswordButton.IsVisible = false;
+        loadedCredentialProfile = null;
         TotpPanel.IsVisible = mode == 1;
         Grid.SetColumnSpan(PasswordInputPanel, mode == 2 ? 3 : 1);
         LoginLabel.Text = mode switch { 1 => Localization.Text("Логин или email Ely.by"), 2 => Localization.Text("Логин или email TLauncher.org"), _ => Localization.Text("Ник игрока") };
         Nickname.PlaceholderText = mode == 0 ? Localization.Text("Как тебя будут звать в этом мире?") : Localization.Text("Логин аккаунта");
-        AuthHint.Text = mode switch { 1 => Localization.Text("Пароль и токен не сохраняются. Код 2FA нужен, если включён в аккаунте."), 2 => Localization.Text("Вход в аккаунт TLauncher.org. Пароль не сохраняется. Подходит для нашего офлайн-сервера."), _ => Localization.Text("От 3 до 16 символов: латинские буквы, цифры и _") };
+        AuthHint.Text = mode switch { 1 => Localization.Text("Пароль сохраняется только по твоему выбору. Код 2FA вводится при каждом входе и не сохраняется."), 2 => Localization.Text("Вход в аккаунт TLauncher.org. Пароль сохраняется только по твоему выбору."), _ => Localization.Text("От 3 до 16 символов: латинские буквы, цифры и _") };
+        if (mode != 0 && !CredentialStore.Available) AuthHint.Text = Localization.Text("Для сохранения пароля на Linux нужны secret-tool и разблокированное системное хранилище паролей.");
         SignInButton.Content = mode == 0 ? Localization.Text("Применить ник") : Localization.Text("Проверить и войти");
         LoginStatus.Text = "";
         Password.Text = Totp.Text = "";
     }
     void JavaModeChanged(object? sender, SelectionChangedEventArgs e)
     {
-        if (JavaPathPanel == null) return;
+        if (JavaPathPanel == null || changingLanguage) return;
         bool custom = JavaMode.SelectedIndex == 1;
         JavaPathPanel.IsVisible = custom;
         JavaHint.Text = custom ? Localization.Text("Выбери Java 21 x64. Внешнюю Java нужно выбирать заново после переноса на другой ПК.") : Localization.Text("Java скачивается и хранится в папке лаунчера.");
@@ -386,7 +433,13 @@ public partial class MainWindow : Window
     async void InstallClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => await Operation(async () => { await InstallClient(); UpdateInstalled(); });
     async void PlayClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
-        if (activeSession == null || currentProfile == null) { AuthForm.IsVisible = true; AccountFlyout.ShowAt(AccountButton); LoginStatus.Text = Localization.Text("Выбери аккаунт или проверь его данные перед запуском."); return; }
+        if (activeSession == null || currentProfile == null)
+        {
+            AuthForm.IsVisible = true; AccountFlyout.ShowAt(AccountButton);
+            if (currentProfile != null) await RestoreSavedLogin(currentProfile);
+            else LoginStatus.Text = Localization.Text("Выбери аккаунт или проверь его данные перед запуском.");
+            return;
+        }
         var session = activeSession;
         var profile = currentProfile;
         await Operation(async () => {
@@ -409,9 +462,10 @@ public partial class MainWindow : Window
         var password = Password.Text ?? "";
         var totp = Totp.Text ?? "";
         int mode = AuthMode.SelectedIndex;
+        bool remember = mode != 0 && RememberPassword.IsChecked == true;
         Password.Text = Totp.Text = "";
         busy = true;
-        SignInButton.IsEnabled = AuthMode.IsEnabled = Nickname.IsEnabled = InstallButton.IsEnabled = PlayButton.IsEnabled = SettingsPanel.IsEnabled = false;
+        SignInButton.IsEnabled = RememberPassword.IsEnabled = ForgetPasswordButton.IsEnabled = AuthMode.IsEnabled = Nickname.IsEnabled = InstallButton.IsEnabled = PlayButton.IsEnabled = SettingsPanel.IsEnabled = false;
         LoginStatus.Foreground = SolidColorBrush.Parse("#D1EDB5");
         LoginStatus.Text = mode == 0 ? Localization.Text("Проверяем ник…") : Localization.Text("Проверяем данные аккаунта…");
         try
@@ -422,13 +476,24 @@ public partial class MainWindow : Window
             var prefs = service.LoadPreferences();
             service.SavePreferences(mode == 0 ? session.Username! : "", prefs.MemoryMb, prefs.JavaPath);
             service.SaveProfile(profile);
+            string? credentialError = null;
+            if (mode != 0)
+            {
+                try
+                {
+                    if (remember) await service.Credentials.Save(profile, login, password);
+                    else await service.Credentials.Remove(profile);
+                }
+                catch (CredentialStoreException error) { credentialError = error.Message; }
+            }
             activeSession = session; currentProfile = profile;
             sessions[LauncherService.ProfileKey(profile)] = session;
             RefreshProfile();
-            BuildSavedProfiles(); AuthForm.IsVisible = false;
-            LoginStatus.Text = mode == 0 ? Localization.Text("Ник применён") : Localization.Text("Аккаунт проверен");
-            Detail(mode == 0 ? Localization.Text("Ник выбран. Можно запускать игру.") : Localization.Text("Данные аккаунта подтверждены сервисом."));
-            AccountFlyout.Hide();
+            BuildSavedProfiles(); AuthForm.IsVisible = credentialError != null;
+            LoginStatus.Text = credentialError == null ? (mode == 0 ? Localization.Text("Ник применён") : Localization.Text("Аккаунт проверен"))
+                : Localization.Text("Вход выполнен, но настройку сохранения пароля применить не удалось. ") + credentialError;
+            Detail(credentialError == null ? (mode == 0 ? Localization.Text("Ник выбран. Можно запускать игру.") : Localization.Text("Данные аккаунта подтверждены сервисом.")) : LoginStatus.Text);
+            if (credentialError == null) AccountFlyout.Hide();
             _ = LoadSkin(profile);
         }
         catch (Exception error)
@@ -436,7 +501,7 @@ public partial class MainWindow : Window
             LoginStatus.Foreground = SolidColorBrush.Parse("#FFB8A6");
             LoginStatus.Text = error is TaskCanceledException ? Localization.Text("Сервис не ответил вовремя. Повтори попытку.") : Localization.Translate(error.Message);
         }
-        finally { busy = false; SignInButton.IsEnabled = AuthMode.IsEnabled = Nickname.IsEnabled = SettingsPanel.IsEnabled = true; UpdateGameActions(); }
+        finally { busy = false; SignInButton.IsEnabled = ForgetPasswordButton.IsEnabled = AuthMode.IsEnabled = Nickname.IsEnabled = SettingsPanel.IsEnabled = true; RememberPassword.IsEnabled = CredentialStore.Available; UpdateGameActions(); }
     }
     void RefreshProfile()
     {
@@ -463,7 +528,8 @@ public partial class MainWindow : Window
     void NewAccountClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         if (busy) return;
-        AuthForm.IsVisible = true; Nickname.Text = ""; Password.Text = Totp.Text = ""; LoginStatus.Text = ""; Nickname.Focus();
+        AuthForm.IsVisible = true; Nickname.Text = ""; Password.Text = Totp.Text = ""; LoginStatus.Text = "";
+        RememberPassword.IsChecked = false; ForgetPasswordButton.IsVisible = false; loadedCredentialProfile = null; Nickname.Focus();
     }
     static string ProviderName(int provider) => provider switch { 1 => "Ely.by", 2 => "TLauncher", _ => Localization.Text("По нику") };
     void BuildSavedProfiles()
@@ -481,14 +547,21 @@ public partial class MainWindow : Window
             var labels = new StackPanel { Spacing = 3, Children = { name, new TextBlock { Text = status, FontSize = 9, Foreground = SolidColorBrush.Parse("#B9D2BF") } } };
             var content = new StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, Spacing = 10, Children = { head, labels } };
             var select = new Button { Content = content, HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch, Padding = new Thickness(10, 8), Background = SolidColorBrush.Parse(currentProfile != null && LauncherService.ProfileKey(currentProfile) == key ? "#3A6445" : "#294B36") };
-            select.Click += (_, _) => SelectSavedProfile(profile);
+            select.Click += async (_, _) => await SelectSavedProfile(profile);
             var remove = new Button { Content = "×", Padding = new Thickness(9, 5), VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center };
             ToolTip.SetTip(remove, Localization.Text("Удалить сохранённый аккаунт"));
-            remove.Click += (_, _) => {
+            remove.Click += async (_, _) => {
                 if (busy) return;
-                service.RemoveProfile(profile); sessions.Remove(key);
-                if (currentProfile != null && LauncherService.ProfileKey(currentProfile) == key) { currentProfile = null; activeSession = null; ++skinRequest; RefreshProfile(); }
-                BuildSavedProfiles(); AuthForm.IsVisible = service.LoadProfiles().Count == 0;
+                busy = true;
+                try
+                {
+                    await service.RemoveProfile(profile); sessions.Remove(key);
+                    if (currentProfile != null && LauncherService.ProfileKey(currentProfile) == key) { currentProfile = null; activeSession = null; ++skinRequest; Password.Text = Totp.Text = ""; RememberPassword.IsChecked = false; ForgetPasswordButton.IsVisible = false; loadedCredentialProfile = null; RefreshProfile(); }
+                    BuildSavedProfiles(); AuthForm.IsVisible = service.LoadProfiles().Count == 0;
+                }
+                catch (Exception error) when (error is CredentialStoreException or IOException or UnauthorizedAccessException)
+                { AuthForm.IsVisible = true; LoginStatus.Text = Localization.Translate(error.Message); }
+                finally { busy = false; UpdateGameActions(); }
             };
             var row = new Grid { ColumnDefinitions = ColumnDefinitions.Parse("*,Auto"), ColumnSpacing = 6 };
             row.Children.Add(select); Grid.SetColumn(remove, 1); row.Children.Add(remove); SavedProfiles.Children.Add(row);
@@ -500,18 +573,58 @@ public partial class MainWindow : Window
         try { var bytes = await service.GetSkin(profile); if (bytes != null && revision == profilesRevision) head.Load(bytes); }
         catch (Exception e) when (e is IOException or ArgumentException) { }
     }
-    void SelectSavedProfile(PlayerProfile profile)
+    async Task SelectSavedProfile(PlayerProfile profile)
     {
         if (busy) return;
         var key = LauncherService.ProfileKey(profile);
         MSession? session = profile.Provider == 0 ? LauncherService.Offline(profile.Name) : sessions.GetValueOrDefault(key);
+        RememberPassword.IsChecked = false; ForgetPasswordButton.IsVisible = false; loadedCredentialProfile = null;
         currentProfile = profile; activeSession = session;
         service.SaveProfile(profile);
         AuthMode.SelectedIndex = profile.Provider; Nickname.Text = profile.Name;
         Password.Text = Totp.Text = "";
         RefreshProfile(); BuildSavedProfiles(); _ = LoadSkin(profile);
         if (session != null) { AuthForm.IsVisible = false; AccountFlyout.Hide(); Detail(Localization.Text("Выбран аккаунт ") + profile.Name); }
-        else { AuthForm.IsVisible = true; LoginStatus.Text = Localization.Text("Введи пароль для проверки и входа в сохранённый аккаунт."); Password.Focus(); }
+        else { AuthForm.IsVisible = true; await RestoreSavedLogin(profile); }
+    }
+
+    async Task RestoreSavedLogin(PlayerProfile profile)
+    {
+        if (busy) return;
+        busy = true;
+        SignInButton.IsEnabled = RememberPassword.IsEnabled = AuthMode.IsEnabled = Nickname.IsEnabled = false;
+        Password.Text = Totp.Text = "";
+        RememberPassword.IsChecked = false; ForgetPasswordButton.IsVisible = false; loadedCredentialProfile = null;
+        if (service.Credentials.HasRecord(profile)) { ForgetPasswordButton.IsVisible = true; loadedCredentialProfile = profile; }
+        try
+        {
+            var saved = await service.Credentials.Load(profile);
+            if (saved != null)
+            {
+                Nickname.Text = saved.Login; Password.Text = saved.Password;
+                RememberPassword.IsChecked = true; ForgetPasswordButton.IsVisible = true; loadedCredentialProfile = profile;
+                LoginStatus.Text = profile.Provider == 1 ? Localization.Text("Пароль загружен. Введи код 2FA, если он включён, и нажми «Проверить и войти».")
+                    : Localization.Text("Пароль загружен. Нажми «Проверить и войти».");
+            }
+            else LoginStatus.Text = Localization.Text("Введи пароль для проверки и входа в сохранённый аккаунт.");
+        }
+        catch (CredentialStoreException error) { LoginStatus.Text = error.Message; }
+        finally { busy = false; SignInButton.IsEnabled = AuthMode.IsEnabled = Nickname.IsEnabled = true; RememberPassword.IsEnabled = CredentialStore.Available; UpdateGameActions(); }
+    }
+
+    async void ForgetPasswordClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => await ForgetSavedPassword();
+    async Task ForgetSavedPassword()
+    {
+        if (busy || loadedCredentialProfile == null) return;
+        busy = true; SignInButton.IsEnabled = ForgetPasswordButton.IsEnabled = RememberPassword.IsEnabled = AuthMode.IsEnabled = Nickname.IsEnabled = false;
+        try
+        {
+            await service.Credentials.Remove(loadedCredentialProfile);
+            Password.Text = ""; RememberPassword.IsChecked = false; ForgetPasswordButton.IsVisible = false; loadedCredentialProfile = null;
+            LoginStatus.Text = Localization.Text("Сохранённый пароль удалён. Аккаунт остался в списке.");
+        }
+        catch (CredentialStoreException error) { LoginStatus.Text = error.Message; }
+        finally { busy = false; SignInButton.IsEnabled = ForgetPasswordButton.IsEnabled = AuthMode.IsEnabled = Nickname.IsEnabled = true; RememberPassword.IsEnabled = CredentialStore.Available; UpdateGameActions(); }
     }
     async Task ObserveGame()
     {

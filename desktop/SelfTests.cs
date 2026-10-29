@@ -34,6 +34,7 @@ static class SelfTests
         Directory.CreateDirectory(root);
         try
         {
+            CredentialStoreTests.Run(root);
             LauncherUpdaterTests.Run(root);
             OptionalModsTests.Run(root);
             Check(LauncherService.Offline("Notch").UUID == "b50ad385829d3141a2167e7d7539ba7f", "Offline UUID matches Java");
@@ -140,7 +141,7 @@ static class SelfTests
             service.SaveProfile(second);
             Check(service.LoadProfiles().Count == 2 && service.LoadProfiles()[0].Name == "RenamedPlayer", "Profiles deduplicate by provider and UUID");
             Check(service.LoadProfile() == second, "Last selected account is remembered");
-            service.RemoveProfile(second);
+            service.RemoveProfile(second).GetAwaiter().GetResult();
             Check(service.LoadProfiles().Count == 1 && service.LoadProfile() == null, "Selected account can be removed");
             Check(Greetings.All.Length >= 50, "At least fifty greeting variants");
             Check(Greetings.All.Select(greeting => greeting.Title).Distinct().Count() == Greetings.All.Length, "Greeting titles are unique");

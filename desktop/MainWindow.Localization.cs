@@ -25,6 +25,14 @@ public partial class MainWindow
             int index = 0;
             foreach (var russian in Localization.English.Keys)
                 Resources["L" + index++] = Localization.Text(russian);
+            // Recreate popup captions too: detached ComboBox items can retain the previous language.
+            var javaMode = Math.Max(0, JavaMode.SelectedIndex);
+            JavaMode.ItemsSource = new[] { Localization.Text("Автоматически — портативная Java 21"), Localization.Text("Выбрать свою Java 21") };
+            JavaMode.SelectedIndex = javaMode;
+            Resources["RememberPasswordLabel"] = Localization.Text("Запомнить пароль на этом компьютере");
+            Resources["PasswordStorageHint"] = Localization.Text("Только этот пользователь ОС и компьютер. При переносе папки пароль не переносится. Токен и код 2FA не сохраняются.");
+            Resources["ForgetPasswordLabel"] = Localization.Text("Забыть сохранённый пароль");
+            Resources["PasswordPlaceholder"] = Localization.Text("Пароль");
             LanguageSelector.SelectedIndex = Localization.Language == "en" ? 1 : 0;
             // Only launcher-owned labels: account names, mod metadata and paths are user data.
             foreach (var name in new[] { "PageTitle", "ProfileDetail", "LoginLabel", "AuthHint", "LoginStatus",
