@@ -488,6 +488,17 @@ public sealed class LauncherService
         if (!Path.GetFullPath(java).StartsWith(Game + Path.DirectorySeparatorChar, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal)) throw new InvalidOperationException(Localization.Text("Java должна находиться в папке лаунчера"));
     }
 
+    internal static void PrepareGameSkins(string game)
+    {
+        // ExtraList is imported before the default providers. The mod consumes it and
+        // deduplicates by texture URLs, so recreate it without replacing user settings.
+        Write(Path.Combine(game, "CustomSkinLoader", "ExtraList", "CreateLauncher-TLauncher.json"), new {
+            name = "CreateLauncher TLauncher HTTPS", type = "Legacy",
+            skin = "https://auth.tlauncher.org/skin/fileservice/skins/skin_{USERNAME}.png",
+            model = "auto", checkPNG = true
+        });
+    }
+
     public async Task<Process> BuildProcess(MSession session, int memory, bool ely)
     {
         if (memory is < 2048 or > 16384) throw new ArgumentException(Localization.Text("Память: от 2048 до 16384 МБ"));
@@ -518,6 +529,7 @@ public sealed class LauncherService
             Session = session, JavaPath = java, MaximumRamMb = memory, MinimumRamMb = 1024,
             ExtraJvmArguments = args, GameLauncherName = "CreateServer", GameLauncherVersion = "0.3.7", ScreenWidth = 1280, ScreenHeight = 720
         });
+        PrepareGameSkins(Game);
         process.StartInfo.WorkingDirectory = Game;
         process.StartInfo.UseShellExecute = false;
         process.StartInfo.CreateNoWindow = true;
@@ -594,4 +606,3 @@ public sealed class LauncherService
         return new(players.GetProperty("online").GetInt32(), players.GetProperty("max").GetInt32());
     }
 }
-

@@ -41,6 +41,20 @@ static class SelfTests
             foreach (var value in new[] { 0, 127, 128, 767, 2097152 }) { using var buffer = new MemoryStream(); LauncherService.WriteVarInt(buffer, value); buffer.Position = 0; Check(LauncherService.ReadVarInt(buffer) == value, "VarInt"); }
             Reject(() => LauncherService.ReadVarInt(new MemoryStream([128, 128, 128, 128, 128])));
             var game = Path.Combine(root, "game");
+            var skinConfig = Path.Combine(game, "CustomSkinLoader", "CustomSkinLoader.json");
+            Directory.CreateDirectory(Path.GetDirectoryName(skinConfig)!);
+            File.WriteAllText(skinConfig, "personal skin settings");
+            LauncherService.PrepareGameSkins(game);
+            var skinExtra = Path.Combine(game, "CustomSkinLoader", "ExtraList", "CreateLauncher-TLauncher.json");
+            using (var extra = JsonDocument.Parse(File.ReadAllText(skinExtra)))
+            {
+                Check(extra.RootElement.GetProperty("type").GetString() == "Legacy", "TLauncher uses direct texture loading");
+                Check(extra.RootElement.GetProperty("skin").GetString() == "https://auth.tlauncher.org/skin/fileservice/skins/skin_{USERNAME}.png", "TLauncher textures use HTTPS and player name");
+                Check(extra.RootElement.GetProperty("model").GetString() == "auto" && extra.RootElement.GetProperty("checkPNG").GetBoolean(), "TLauncher model detection and PNG validation");
+            }
+            File.Delete(skinExtra); // CustomSkinLoader consumes ExtraList files after importing them.
+            LauncherService.PrepareGameSkins(game);
+            Check(File.Exists(skinExtra) && File.ReadAllText(skinConfig) == "personal skin settings", "Skin setup survives consumed ExtraList and preserves user config");
             var state = Path.Combine(root, "state.json");
             var config = new LauncherConfig();
             var zip = Pack(root, new() { ["mods/old.jar"] = "old", ["optional-mods/map.jar"] = "optional map", ["optional-mods/retired.jar"] = "retired", ["config/test.json"] = "default", ["options.txt"] = "saved game defaults" });
