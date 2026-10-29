@@ -423,7 +423,7 @@ public sealed class LauncherService
                 throw new InvalidDataException(Localization.Text("Нужен HTTPS-адрес релиза клиента"));
             report(Localization.Text("Проверяем релиз клиента на GitHub…"));
             using var request = new HttpRequestMessage(HttpMethod.Get, uri);
-            request.Headers.UserAgent.ParseAdd("CreateLauncher/0.3.7");
+            request.Headers.UserAgent.ParseAdd("CreateLauncher/0.3.8");
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             using var response = await Http.SendAsync(request, timeout.Token);
             response.EnsureSuccessStatusCode();
@@ -527,7 +527,7 @@ public sealed class LauncherService
         AddServer(Game, Config.Server, Config.Name);
         var process = await launcher.BuildProcessAsync(installed.Version, new MLaunchOption {
             Session = session, JavaPath = java, MaximumRamMb = memory, MinimumRamMb = 1024,
-            ExtraJvmArguments = args, GameLauncherName = "CreateServer", GameLauncherVersion = "0.3.7", ScreenWidth = 1280, ScreenHeight = 720
+            ExtraJvmArguments = args, GameLauncherName = "CreateServer", GameLauncherVersion = "0.3.8", ScreenWidth = 1280, ScreenHeight = 720
         });
         PrepareGameSkins(Game);
         process.StartInfo.WorkingDirectory = Game;

@@ -6,7 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AssemblyName>CreateLauncher</AssemblyName>
-    <Version>0.3.7</Version>
+    <Version>0.3.8</Version>
     <ApplicationIcon Condition="Exists('Assets/logo.ico')">Assets/logo.ico</ApplicationIcon>
     <PublishTrimmed>false</PublishTrimmed>
     <NuGetAudit>false</NuGetAudit>
