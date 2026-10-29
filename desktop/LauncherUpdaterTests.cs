@@ -47,10 +47,11 @@ internal static class LauncherUpdaterTests
             foreach (var file in files) { using var writer = new StreamWriter(zip.CreateEntry(file.Path).Open()); writer.Write(file.Text); }
             return path;
         }
-        var archive = MakeZip("valid.zip", (LauncherUpdater.Executable, "new launcher"), ("libTest.dll", "new library"), ("launcher.json", "release defaults"), ("client.zip", "bundled client"));
+        var archive = MakeZip("valid.zip", (LauncherUpdater.Executable, "new launcher"), ("libTest.dll", "new library"),
+            ("NOTICE.md", "dependency license notices"), ("launcher.json", "release defaults"), ("client.zip", "bundled client"));
         var stage = Path.Combine(workspace, "stage");
         var files = LauncherUpdater.Extract(archive, stage);
-        Check(files.Length == 2 && !File.Exists(Path.Combine(stage, "launcher.json")) && !File.Exists(Path.Combine(stage, "client.zip")), "Release defaults and game archive stay untouched");
+        Check(files.Length == 3 && !File.Exists(Path.Combine(stage, "launcher.json")) && !File.Exists(Path.Combine(stage, "client.zip")), "Release defaults and game archive stay untouched");
         foreach (var path in new[] { "../escape", "data/settings.json", "Assets/../../escape", "C:/escape", "Assets\\escape" })
         {
             var unsafeZip = MakeZip(Guid.NewGuid() + ".zip", (LauncherUpdater.Executable, "new launcher"), (path, "unwanted"));
@@ -67,18 +68,21 @@ internal static class LauncherUpdaterTests
         File.WriteAllText(Path.Combine(target, "data", "settings.json"), "personal settings");
         LauncherUpdater.ReplaceFiles(stage, target, Path.Combine(workspace, "backup"), files);
         Check(File.ReadAllText(Path.Combine(target, LauncherUpdater.Executable)) == "new launcher"
+            && File.ReadAllText(Path.Combine(target, "NOTICE.md")) == "dependency license notices"
             && File.ReadAllText(Path.Combine(target, "launcher.json")) == "personal server"
             && File.ReadAllText(Path.Combine(target, "data", "settings.json")) == "personal settings", "Replacement preserves settings and data");
         File.WriteAllText(Path.Combine(target, LauncherUpdater.Executable), "old launcher");
+        File.WriteAllText(Path.Combine(target, "NOTICE.md"), "old license notices");
         Directory.CreateDirectory(Path.Combine(target, "blocked.dll"));
         File.WriteAllText(Path.Combine(stage, "blocked.dll"), "library");
         try
         {
-            LauncherUpdater.ReplaceFiles(stage, target, Path.Combine(workspace, "rollback"), [LauncherUpdater.Executable, "blocked.dll"]);
+            LauncherUpdater.ReplaceFiles(stage, target, Path.Combine(workspace, "rollback"), ["NOTICE.md", LauncherUpdater.Executable, "blocked.dll"]);
             throw new Exception("Expected copy failure");
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException) { }
         Check(File.ReadAllText(Path.Combine(target, LauncherUpdater.Executable)) == "old launcher", "A failed replacement rolls back earlier files");
+        Check(File.ReadAllText(Path.Combine(target, "NOTICE.md")) == "old license notices", "A failed replacement rolls back license notices");
         Reject(() => LauncherUpdater.ReplaceFiles(stage, target, Path.Combine(workspace, "unsafe-backup"), ["data/settings.json"]));
         Console.WriteLine("PASS: launcher release selection, SHA-256 requirement, update paths, data preservation and rollback");
     }

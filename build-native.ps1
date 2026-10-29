@@ -17,6 +17,18 @@ $includeClient = $PackArchive -and !$WithoutClient
 foreach ($document in @('README.md', 'LICENSE', 'NOTICE.md', 'CHANGELOG.md')) {
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot $document) -Destination $output
 }
+# Use the exact self-contained runtime selected by publish, including its bundled components.
+$framework = ([xml](Get-Content -LiteralPath $project -Raw)).Project.PropertyGroup.TargetFramework
+$runtimeConfig = Get-Content -LiteralPath (Join-Path $PSScriptRoot "desktop/bin/Release/$framework/$Runtime/CreateLauncher.runtimeconfig.json") -Raw | ConvertFrom-Json
+$runtimeVersion = ($runtimeConfig.runtimeOptions.includedFrameworks | Where-Object name -eq 'Microsoft.NETCore.App').version
+if (!$runtimeVersion) { throw 'Не найдена версия .NET runtime для лицензионных уведомлений.' }
+$runtimePackage = Join-Path $packages "microsoft.netcore.app.runtime.$Runtime/$runtimeVersion"
+$notices = Join-Path $output 'NOTICE.md'
+foreach ($document in @('LICENSE.TXT', 'THIRD-PARTY-NOTICES.TXT')) {
+    $text = Get-Content -LiteralPath (Join-Path $runtimePackage $document) -Raw -Encoding utf8
+    if ([string]::IsNullOrWhiteSpace($text)) { throw "Пустое уведомление .NET: $document" }
+    [IO.File]::AppendAllText($notices, "`n`n## Microsoft.NETCore.App $runtimeVersion ($Runtime) / $document`n`n``````text`n$text`n```````n")
+}
 if ($includeClient) {
     if (!(Test-Path -LiteralPath $PackArchive)) { throw 'Нет client.zip по указанному пути.' }
     Copy-Item -LiteralPath $PackArchive -Destination (Join-Path $output 'client.zip')
